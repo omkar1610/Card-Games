@@ -97,6 +97,7 @@ class RoundState:
     current_turn: Optional[str] = None
     current_trick: List[Tuple[str, Card]] = field(default_factory=list)
     tricks: List[Trick] = field(default_factory=list)
+    remaining_deck: List[Card] = field(default_factory=list)
 
     bids: List[BidEntry] = field(default_factory=list)
     passed: set[str] = field(default_factory=set)
@@ -175,7 +176,7 @@ class TwentyNineGame:
 
         st.current_turn = first
         st.trick_leader = None
-        st._remaining_deck = deck
+        st.remaining_deck = deck
 
     def bid(self, player: str, amount: Optional[int]) -> None:
         st = self.state
@@ -222,7 +223,7 @@ class TwentyNineGame:
 
         for _ in range(4):
             for p in PLAYERS:
-                st.hands[p].append(st._remaining_deck.pop())
+                st.hands[p].append(st.remaining_deck.pop())
 
         st.phase = "PLAYING"
         st.trick_leader = st.declarer

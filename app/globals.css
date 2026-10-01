@@ -952,3 +952,71 @@ a {
 .card.tiny .corner small {
   font-size: 10px;
 }
+
+.game-over {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+.winner-banner {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 4px;
+  animation: winner-pop 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+@keyframes winner-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+
+/* ---------- dealing ---------- */
+.deal-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.deal-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin-left: calc(var(--card-w) * -0.35);
+  margin-top: calc(var(--card-w) * -0.5);
+  animation: deal-fly 0.45s ease-out both;
+  animation-delay: var(--d);
+}
+
+.deal-card .card {
+  --card-w: calc(var(--app-w, 375px) * 0.1);
+}
+
+@keyframes deal-fly {
+  from {
+    transform: translate(var(--sx), var(--sy)) rotate(-10deg);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--tx), var(--ty)) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+}
+
+.my-hand .hand-card.deal-in .card {
+  animation: deal-in 0.35s ease-out both;
+  animation-delay: var(--d);
+}
+
+@keyframes deal-in {
+  from {
+    transform: translateY(-140px) rotate(-8deg);
+    opacity: 0;
+  }
+}

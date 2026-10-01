@@ -17,6 +17,7 @@
 //  - The round ends as soon as its result can no longer change (target reached, or out of reach),
 //    allowing for a marriage that could still be declared.
 //  - Bidder team reaching the target scores +1 game point, otherwise −1 (×2 doubled, ×4 redoubled).
+//  - The game ends when a team reaches +6 (they win) or −6 (they lose).
 
 import { Card, SUITS, SUIT_SYMBOL, Suit, newDeck, pointsOf, shuffle, strength, suitOf, rankOf, sortHand } from "./cards";
 
@@ -26,6 +27,7 @@ export type Phase = "bidding" | "trump" | "double" | "redouble" | "playing" | "d
 export const MIN_BID = 16;
 export const MAX_BID = 28;
 export const MARRIAGE_DELTA = 4;
+export const GAME_POINTS = 6;
 
 export const teamOf = (seat: number): Team => (seat % 2 === 0 ? "A" : "B");
 export const nextSeat = (seat: number) => (seat + 1) % 4;
@@ -96,6 +98,8 @@ export interface Round {
 
 export interface Match {
   score: Record<Team, number>;
+  winner?: Team | null; // set when a team reaches +6 or the other reaches −6
+  gamesWon?: Record<Team, number>; // across "Play again"s in this room
   dealer: number;
   roundNumber: number;
   round: Round | null;
@@ -112,7 +116,8 @@ export type Action =
   | { type: "double" }
   | { type: "redouble" }
   | { type: "noDouble" }
-  | { type: "nextRound" };
+  | { type: "nextRound" }
+  | { type: "playAgain" };
 
 export class EngineError extends Error {}
 
@@ -125,6 +130,8 @@ function fail(msg: string): never {
 export function newMatch(rng: () => number = Math.random): Match {
   const match: Match = {
     score: { A: 0, B: 0 },
+    winner: null,
+    gamesWon: { A: 0, B: 0 },
     dealer: Math.floor(rng() * 4),
     roundNumber: 0,
     round: null,
@@ -233,6 +240,16 @@ export function applyAction(input: Match, seat: number, action: Action, rng: () 
       break;
     case "nextRound":
       if (r.phase !== "done") fail("Round is not finished");
+      if (match.winner) fail("The game is over");
+      match.dealer = nextSeat(match.dealer);
+      startRound(match, rng);
+      break;
+    case "playAgain":
+      if (!match.winner) fail("The game isn't over yet");
+      match.score = { A: 0, B: 0 };
+      match.history = [];
+      match.winner = null;
+      match.roundNumber = 0;
       match.dealer = nextSeat(match.dealer);
       startRound(match, rng);
       break;
@@ -407,6 +424,13 @@ function finishRound(match: Match, r: Round) {
   delta[bidderTeam] = (made ? 1 : -1) * r.multiplier;
   match.score.A += delta.A;
   match.score.B += delta.B;
+  const s = match.score[bidderTeam];
+  if (Math.abs(s) >= GAME_POINTS) {
+    const winner: Team = s > 0 ? bidderTeam : bidderTeam === "A" ? "B" : "A";
+    match.winner = winner;
+    match.gamesWon = match.gamesWon ?? { A: 0, B: 0 };
+    match.gamesWon[winner] += 1;
+  }
   r.phase = "done";
   r.result = {
     round: r.number,
@@ -430,6 +454,8 @@ function finishRound(match: Match, r: Round) {
 export interface PlayerView {
   mySeat: number;
   score: Record<Team, number>;
+  winner: Team | null;
+  gamesWon: Record<Team, number>;
   history: RoundResult[];
   round: null | {
     number: number;
@@ -466,12 +492,17 @@ export interface PlayerView {
 /** Strips everything `seat` must not see (other hands, stock, secret trump suit). */
 export function viewFor(match: Match, seat: number): PlayerView {
   const r = match.round;
-  if (!r) return { mySeat: seat, score: match.score, history: match.history, round: null };
-  const iSeeTrump = r.trumpRevealed || seat === r.bidder;
-  return {
+  const common = {
     mySeat: seat,
     score: match.score,
+    winner: match.winner ?? null,
+    gamesWon: match.gamesWon ?? { A: 0, B: 0 },
     history: match.history,
+  };
+  if (!r) return { ...common, round: null };
+  const iSeeTrump = r.trumpRevealed || seat === r.bidder;
+  return {
+    ...common,
     round: {
       number: r.number,
       dealer: r.dealer,

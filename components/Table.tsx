@@ -4,13 +4,17 @@ import { useEffect, useState } from "react";
 import type { RoomView } from "@/lib/rooms";
 import type { Action, PlayerView, Team } from "@/lib/engine/game";
 import { SUITS, SUIT_SYMBOL, SUIT_NAME, Suit } from "@/lib/engine/cards";
-import { CardFace } from "./Card";
+import { CardBack, CardFace } from "./Card";
 
 type Dir = "s" | "e" | "n" | "w";
 const DIRS: Dir[] = ["s", "e", "n", "w"]; // relative to me, anticlockwise
 const TRICK_SHOW_MS = 700; // finished hand stays in the middle…
 const TRICK_COLLECT_MS = 450; // …then slides to whoever won it
 const TOAST_MS = 3500;
+const DEAL_STEP_MS = 70; // gap between cards flying out of the dealer's hand
+// Where dealt cards fly to / start from, relative to the middle of the table.
+const DEAL_TO: Record<Dir, [string, string]> = { s: ["0px", "260px"], n: ["0px", "-230px"], e: ["170px", "0px"], w: ["-170px", "0px"] };
+const DEAL_FROM: Record<Dir, [string, string]> = { s: ["0px", "90px"], n: ["0px", "-80px"], e: ["60px", "0px"], w: ["-60px", "0px"] };
 
 const teamOf = (seat: number): Team => (seat % 2 === 0 ? "A" : "B");
 const isRed = (s: Suit | null) => s === "H" || s === "D";
@@ -68,6 +72,23 @@ export default function Table({ view, game, act, send, error }: Props) {
     const t = setTimeout(() => setToast(null), TOAST_MS);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // ---- deal animation: whenever 4+ new cards land in my hand (first 4, then 4 more after trump),
+  // cards fly from the dealer to everyone in dealing order. Not on page load.
+  const handSig = r.hand.join(",");
+  const [knownHand, setKnownHand] = useState(r.hand);
+  const [deal, setDeal] = useState<{ id: number; fresh: string[] } | null>(null);
+  if (handSig !== knownHand.join(",")) {
+    const fresh = r.hand.filter((c) => !knownHand.includes(c));
+    setKnownHand(r.hand);
+    if (fresh.length >= 4) setDeal({ id: (deal?.id ?? 0) + 1, fresh });
+  }
+  useEffect(() => {
+    if (!deal) return;
+    const t = setTimeout(() => setDeal(null), 16 * DEAL_STEP_MS + 700);
+    return () => clearTimeout(t);
+  }, [deal]);
+  const myDealOffset = (me - r.dealer - 1 + 8) % 4; // my position in the dealing order
 
   // My card goes on the table immediately; the server's reply replaces this a moment later.
   const [pending, setPending] = useState<string | null>(null);
@@ -174,11 +195,16 @@ export default function Table({ view, game, act, send, error }: Props) {
 
         <div className="stats-row">
           <div className="stat">
-            <span className="stat-label">Game</span>
+            <span className="stat-label">Game · to ±6</span>
             <span className="stat-value">
               <span className="ta">A {game.score.A}</span>
               <span className="tb">B {game.score.B}</span>
             </span>
+            {game.gamesWon.A + game.gamesWon.B > 0 && (
+              <span className="stat-sub">
+                Games won {game.gamesWon.A}–{game.gamesWon.B}
+              </span>
+            )}
           </div>
           <div className="stat">
             <span className="stat-label">Round {r.number}</span>
@@ -253,6 +279,26 @@ export default function Table({ view, game, act, send, error }: Props) {
 
         <div className="trick-area">
           {toast && <div className="toast">{toast}</div>}
+          {deal && (
+            <div className="deal-layer" key={deal.id} aria-hidden>
+              {Array.from({ length: 16 }, (_, i) => {
+                const to = DEAL_TO[dirOf((r.dealer + 1 + i) % 4)];
+                const from = DEAL_FROM[dirOf(r.dealer)];
+                const style = {
+                  "--sx": from[0],
+                  "--sy": from[1],
+                  "--tx": to[0],
+                  "--ty": to[1],
+                  "--d": `${i * DEAL_STEP_MS}ms`,
+                } as React.CSSProperties;
+                return (
+                  <div key={i} className="deal-card" style={style}>
+                    <CardBack />
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div className={`collect ${showLast && held?.collecting ? `to-${dirOf(lastTrick!.winner)}` : ""}`}>
             {shownTrick.map((p) => (
               <div
@@ -344,10 +390,14 @@ export default function Table({ view, game, act, send, error }: Props) {
           <div className="my-hand">
             {r.hand.filter((c) => c !== pending).map((c) => {
               const playable = myTurn && r.phase === "playing" && legal.has(c);
+              const k = deal ? deal.fresh.indexOf(c) : -1;
+              const dealStyle =
+                k >= 0 ? ({ "--d": `${(myDealOffset + 4 * k) * DEAL_STEP_MS + 300}ms` } as React.CSSProperties) : undefined;
               return (
                 <button
                   key={c}
-                  className={`hand-card ${playable ? "playable" : ""} ${myTurn && r.phase === "playing" && !playable ? "dim" : ""}`}
+                  style={dealStyle}
+                  className={`hand-card ${playable ? "playable" : ""} ${myTurn && r.phase === "playing" && !playable ? "dim" : ""} ${k >= 0 ? "deal-in" : ""}`}
                   disabled={!playable}
                   onClick={() => playCard(c)}
                 >
@@ -397,9 +447,28 @@ export default function Table({ view, game, act, send, error }: Props) {
                 <span className="ta">A {game.score.A}</span>
                 <span className="tb">B {game.score.B}</span>
               </p>
-              <button className="btn primary block" onClick={() => act({ type: "nextRound" })}>
-                Next round
-              </button>
+              {game.winner ? (
+                <div className="game-over">
+                  <div className={`winner-banner ${game.winner === "A" ? "ta" : "tb"}`}>
+                    Team {game.winner} wins the game!
+                  </div>
+                  <p className="hint" style={{ margin: "0 0 10px" }}>
+                    {teamNames(game.winner)}
+                    {game.gamesWon.A + game.gamesWon.B > 1 &&
+                      ` · games won A ${game.gamesWon.A} – B ${game.gamesWon.B}`}
+                  </p>
+                  <button className="btn primary block" onClick={() => act({ type: "playAgain" })}>
+                    Play again
+                  </button>
+                  <button className="btn block" style={{ marginTop: 8 }} onClick={endGame}>
+                    End game
+                  </button>
+                </div>
+              ) : (
+                <button className="btn primary block" onClick={() => act({ type: "nextRound" })}>
+                  Next round
+                </button>
+              )}
             </div>
           </div>
         )}

@@ -82,8 +82,37 @@ for (let g = 0; g < GAMES; g++) {
     }
     if (r.result!.made) made++;
     assert(Math.abs(r.result!.delta.A + r.result!.delta.B) === r.multiplier, "score delta = multiplier");
-    m = applyAction(m, 0, { type: "nextRound" }, rng);
+    m = applyAction(m, 0, { type: m.winner ? "playAgain" : "nextRound" }, rng);
   }
+}
+
+// Games end at +6 / −6 and can be replayed
+{
+  let finished = 0;
+  for (let g = 0; g < 200; g++) {
+    const rng = seeded(10_000 + g);
+    let m: Match = newMatch(rng);
+    let guard = 0;
+    while (!m.winner) {
+      assert(guard++ < 20_000, "game never ended");
+      const r = m.round!;
+      if (r.phase === "done") { m = applyAction(m, 0, { type: "nextRound" }, rng); continue; }
+      if (r.phase === "bidding") { m = applyAction(m, r.turn, r.bids.length === 0 ? { type: "bid", value: 16 + Math.floor(rng() * 4) } : { type: "pass" }, rng); continue; }
+      if (r.phase === "trump") { m = applyAction(m, r.turn, { type: "chooseTrump", suit: "S" }, rng); continue; }
+      if (r.phase === "double" || r.phase === "redouble") { m = applyAction(m, doubleDeciders(r)[0], { type: "noDouble" }, rng); continue; }
+      const legal = legalPlays(r, r.turn);
+      m = applyAction(m, r.turn, { type: "play", card: legal.cards[Math.floor(rng() * legal.cards.length)] }, rng);
+    }
+    const w = m.winner;
+    assert(m.score[w] >= 6 || m.score[w === "A" ? "B" : "A"] <= -6, "winner reached +6 or other team −6");
+    let threw = false;
+    try { applyAction(m, 0, { type: "nextRound" }, rng); } catch { threw = true; }
+    assert(threw, "no next round after game over");
+    const again = applyAction(m, 0, { type: "playAgain" }, rng);
+    assert(again.score.A === 0 && again.score.B === 0 && !again.winner && again.gamesWon![w] === m.gamesWon![w], "play again resets score, keeps games won");
+    finished++;
+  }
+  console.log(`games played to ±6: ${finished}`);
 }
 
 // Illegal actions are rejected

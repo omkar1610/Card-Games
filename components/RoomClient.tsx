@@ -8,7 +8,7 @@ import Lobby from "./Lobby";
 import Table from "./Table";
 import type { Action } from "@/lib/engine/game";
 
-const POLL_MS = 1000;
+const POLL_MS = 600; // how quickly other players' moves show up
 
 export default function RoomClient({ code }: { code: string }) {
   const [view, setView] = useState<RoomView | null>(null);

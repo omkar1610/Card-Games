@@ -8,8 +8,8 @@ import { CardFace } from "./Card";
 
 type Dir = "s" | "e" | "n" | "w";
 const DIRS: Dir[] = ["s", "e", "n", "w"]; // relative to me, anticlockwise
-const TRICK_SHOW_MS = 900; // finished hand stays in the middle…
-const TRICK_COLLECT_MS = 600; // …then slides to whoever won it
+const TRICK_SHOW_MS = 700; // finished hand stays in the middle…
+const TRICK_COLLECT_MS = 450; // …then slides to whoever won it
 const TOAST_MS = 3500;
 
 const teamOf = (seat: number): Team => (seat % 2 === 0 ? "A" : "B");
@@ -18,7 +18,7 @@ const isRed = (s: Suit | null) => s === "H" || s === "D";
 interface Props {
   view: RoomView;
   game: PlayerView;
-  act: (a: Action) => void;
+  act: (a: Action) => Promise<void>;
   send: (body: unknown) => Promise<void>;
   error: string;
 }
@@ -69,11 +69,20 @@ export default function Table({ view, game, act, send, error }: Props) {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // My card goes on the table immediately; the server's reply replaces this a moment later.
+  const [pending, setPending] = useState<string | null>(null);
+  async function playCard(card: string) {
+    setPending(card);
+    await act({ type: "play", card });
+    setPending(null);
+  }
+
   const lastTrick = tricksLen ? r.tricks[tricksLen - 1] : null;
-  const showLast = holding && r.trick.length === 0 && lastTrick !== null;
-  const shownTrick = showLast ? lastTrick!.cards : r.trick;
+  const showLast = holding && r.trick.length === 0 && lastTrick !== null && !pending;
+  const shownTrick = pending ? [...r.trick, { seat: me, card: pending }] : showLast ? lastTrick!.cards : r.trick;
   const deciding = r.phase === "double" || r.phase === "redouble";
-  const myTurn = r.turn === me && (r.phase === "bidding" || r.phase === "trump" || r.phase === "playing");
+  const myTurn =
+    !pending && r.turn === me && (r.phase === "bidding" || r.phase === "trump" || r.phase === "playing");
   const iDecide = r.doubleDeciders.includes(me);
   const legal = new Set(r.legal.cards);
   const preplay = r.phase === "bidding" || r.phase === "trump" || deciding;
@@ -118,7 +127,8 @@ export default function Table({ view, game, act, send, error }: Props) {
       return { text: "Waiting…", mine: false };
     }
     if (r.phase === "playing") {
-      if (showLast) return { text: `${name(lastTrick!.winner)} won the hand (+${lastTrick!.points})`, mine: false };
+      if (showLast && !myTurn)
+        return { text: `${name(lastTrick!.winner)} won the hand (+${lastTrick!.points})`, mine: false };
       return myTurn ? { text: "Your turn", mine: true } : { text: `${name(r.turn)}'s turn`, mine: false };
     }
     return { text: "Round over", mine: false };
@@ -332,14 +342,14 @@ export default function Table({ view, game, act, send, error }: Props) {
           )}
 
           <div className="my-hand">
-            {r.hand.map((c) => {
+            {r.hand.filter((c) => c !== pending).map((c) => {
               const playable = myTurn && r.phase === "playing" && legal.has(c);
               return (
                 <button
                   key={c}
                   className={`hand-card ${playable ? "playable" : ""} ${myTurn && r.phase === "playing" && !playable ? "dim" : ""}`}
                   disabled={!playable}
-                  onClick={() => act({ type: "play", card: c })}
+                  onClick={() => playCard(c)}
                 >
                   <CardFace card={c} />
                 </button>
@@ -370,6 +380,11 @@ export default function Table({ view, game, act, send, error }: Props) {
                 {r.result.target !== r.result.bid ? `, target ${r.result.target} after marriage` : ""}
                 {r.result.multiplier === 4 ? " · redoubled" : r.result.multiplier === 2 ? " · doubled" : ""}
               </p>
+              {r.result.handsPlayed < 8 && (
+                <p className="hint" style={{ margin: 0 }}>
+                  Decided after {r.result.handsPlayed} of 8 hands
+                </p>
+              )}
               <div className={`big ${r.result.bidderTeam === "A" ? "ta" : "tb"}`}>
                 {r.result.bidderPoints} / {r.result.target}
               </div>

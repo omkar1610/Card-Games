@@ -20,6 +20,7 @@ Next.js app on Vercel. Login → create/join a room → pick seats → play.
 - If you can't follow suit you may play any card. You may also **Ask for trump** first, which reveals the trump suit to everyone. Until it's revealed there is no trump.
 - **Marriage**: once trump is revealed, a player holding K+Q of trump can declare it. If they're on the bidder's team the target drops by 4 (min 16), otherwise it rises by 4 (max 28).
 - After trump is chosen, the other team may **Double**. If they do, the bidding team may **Redouble**. Each player on the deciding team answers once.
+- The round ends as soon as the result is certain: the bidding team has reached its target, or can't reach it even by winning every remaining hand. A marriage that could still be declared counts as well, so the result must hold whether or not the target moves by 4.
 - The bidding team scores +1 game point if it reaches the target, otherwise −1. That's ×2 if doubled and ×4 if redoubled.
 
 The rules live in `lib/engine/game.ts` (pure TypeScript, no framework code). `npm test` plays 9,000 random rounds and checks the invariants.

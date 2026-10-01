@@ -14,6 +14,8 @@
 //    bidder's team → target −4 (min 16), other team → +4 (max 28).
 //  - After trump is chosen and all 8 cards are dealt, the other team may Double; if they do,
 //    the bidder's team may Redouble. Each opponent (then each bidder-team player) answers once.
+//  - The round ends as soon as its result can no longer change (target reached, or out of reach),
+//    allowing for a marriage that could still be declared.
 //  - Bidder team reaching the target scores +1 game point, otherwise −1 (×2 doubled, ×4 redoubled).
 
 import { Card, SUITS, SUIT_SYMBOL, Suit, newDeck, pointsOf, shuffle, strength, suitOf, rankOf, sortHand } from "./cards";
@@ -59,6 +61,7 @@ export interface RoundResult {
   bidderPoints: number;
   multiplier: number;
   made: boolean;
+  handsPlayed: number; // < 8 when the round ended early
   delta: Record<Team, number>;
 }
 
@@ -221,7 +224,7 @@ export function applyAction(input: Match, seat: number, action: Action, rng: () 
       doPlay(match, r, seat, action.card);
       break;
     case "marriage":
-      doMarriage(r, seat);
+      doMarriage(match, r, seat);
       break;
     case "double":
     case "redouble":
@@ -357,10 +360,34 @@ function doPlay(match: Match, r: Round, seat: number, card: Card) {
   r.leader = winner;
   r.turn = winner;
 
-  if (r.tricks.length === 8) finishRound(match, r);
+  if (r.tricks.length === 8 || outcomeDecided(r) !== null) finishRound(match, r);
 }
 
-function doMarriage(r: Round, seat: number) {
+/**
+ * true/false once the bidder's team has certainly made/missed the target, else null.
+ * A marriage someone could still declare moves the target by ±4, so both targets must agree.
+ */
+export function outcomeDecided(r: Round): boolean | null {
+  if (r.phase !== "playing" || r.target === null) return null;
+  const bidderTeam = teamOf(r.bidder!);
+  const have = r.points[bidderTeam];
+  const left = 28 - r.points.A - r.points.B;
+  const targets = [r.target];
+  if (!r.marriage) {
+    const holder = [0, 1, 2, 3].find(
+      (s) => r.hands[s].includes("K" + r.trumpSuit) && r.hands[s].includes("Q" + r.trumpSuit),
+    );
+    if (holder !== undefined)
+      targets.push(
+        teamOf(holder) === bidderTeam ? Math.max(MIN_BID, r.target - MARRIAGE_DELTA) : Math.min(MAX_BID, r.target + MARRIAGE_DELTA),
+      );
+  }
+  if (targets.every((t) => have >= t)) return true;
+  if (targets.every((t) => have + left < t)) return false;
+  return null;
+}
+
+function doMarriage(match: Match, r: Round, seat: number) {
   if (!canDeclareMarriage(r, seat)) fail("You can't declare a marriage now");
   const team = teamOf(seat);
   const bidderTeam = teamOf(r.bidder!);
@@ -368,6 +395,8 @@ function doMarriage(r: Round, seat: number) {
   r.target =
     team === bidderTeam ? Math.max(MIN_BID, r.target! - MARRIAGE_DELTA) : Math.min(MAX_BID, r.target! + MARRIAGE_DELTA);
   r.log.push({ seat, text: `declared marriage — target is now ${r.target}` });
+  // Settle only between hands; mid-hand it's checked again when the hand completes.
+  if (r.trick.length === 0 && outcomeDecided(r) !== null) finishRound(match, r);
 }
 
 function finishRound(match: Match, r: Round) {
@@ -388,9 +417,11 @@ function finishRound(match: Match, r: Round) {
     bidderPoints,
     multiplier: r.multiplier,
     made,
+    handsPlayed: r.tricks.length,
     delta,
   };
   match.history.push(r.result);
+  if (r.tricks.length < 8) r.log.push({ seat: null, text: `result decided after ${r.tricks.length} hands — round over` });
   r.log.push({ seat: r.bidder, text: made ? `made the bid (${bidderPoints}/${r.target})` : `went down (${bidderPoints}/${r.target})` });
 }
 

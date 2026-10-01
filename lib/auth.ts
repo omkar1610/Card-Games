@@ -1,11 +1,18 @@
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
-import { kvDel, kvGet, kvSet, kvSetNew } from "./store";
+import { kvDel, kvGet, kvSet, kvSetNew, storageProblem } from "./store";
 
 const COOKIE = "session";
 const SESSION_DAYS = 30;
 export const DEFAULT_PASSWORD = "1234";
+
+/** Human-readable reason the server can't handle logins, or null if setup is fine. */
+export function setupProblem(): string | null {
+  if (process.env.VERCEL && !process.env.AUTH_SECRET)
+    return "Server setup problem: AUTH_SECRET is not set. Add it in Vercel → Settings → Environment Variables, then redeploy.";
+  return storageProblem();
+}
 
 function secret() {
   const s = process.env.AUTH_SECRET;

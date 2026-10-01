@@ -1,5 +1,5 @@
 import { Action, EngineError, Match, PlayerView, applyAction, newMatch, viewFor } from "./engine/game";
-import { kvDel, kvGet, kvSet, versionGet, versionedWrite } from "./store";
+import { kvDel, kvGet, kvSet, versionGet, versionedGet, versionedWrite } from "./store";
 
 const ROOM_TTL = 7 * 24 * 3600;
 const roomKey = (code: string) => `room:${code}`;
@@ -76,9 +76,8 @@ export async function createRoom(host: string): Promise<string> {
 }
 
 async function load(code: string): Promise<{ room: Room; version: number }> {
-  const version = await versionGet(roomKey(code));
-  const room = version ? await kvGet<Room>(roomKey(code)) : null;
-  if (!room) throw new RoomError("Room not found", 404);
+  const { value: room, version } = await versionedGet<Room>(roomKey(code));
+  if (!room || !version) throw new RoomError("Room not found", 404);
   return { room, version };
 }
 
@@ -98,12 +97,12 @@ export function toView(room: Room, version: number, me: string): RoomView {
   };
 }
 
-/** Returns null when the client already has `knownVersion`. */
+/**
+ * Returns null when the client already has `knownVersion`. The cheap version check runs first so an
+ * unchanged room costs one small read; a changed room costs one more.
+ */
 export async function getRoomView(code: string, me: string, knownVersion?: number): Promise<RoomView | null> {
-  if (knownVersion !== undefined) {
-    const v = await versionGet(roomKey(code));
-    if (v === knownVersion) return null;
-  }
+  if (knownVersion !== undefined && (await versionGet(roomKey(code))) === knownVersion) return null;
   const { room, version } = await load(code);
   return toView(room, version, me);
 }
@@ -162,14 +161,23 @@ function mutate(room: Room, me: string, body: RoomOp) {
   }
 }
 
-/** Applies an op with optimistic locking, retrying if someone else wrote concurrently. */
-export async function updateRoom(code: string, me: string, body: RoomOp): Promise<RoomView> {
+/**
+ * Applies an op with optimistic locking, retrying if someone else wrote concurrently.
+ * `sessionOk` lets the caller's session check run in parallel with the room read; it's awaited before writing.
+ */
+export async function updateRoom(
+  code: string,
+  me: string,
+  body: RoomOp,
+  sessionOk: Promise<boolean> = Promise.resolve(true),
+): Promise<RoomView> {
   if (body.op === "sit") await assertFree(me, code);
   for (let attempt = 0; attempt < 8; attempt++) {
     const { room, version } = await load(code);
     const before = room.seats.slice();
     mutate(room, me, body);
     room.updatedAt = Date.now();
+    if (!(await sessionOk)) throw new RoomError("Not logged in", 401);
     if (await versionedWrite(roomKey(code), version, room, ROOM_TTL)) {
       await syncMembership(code, before, room);
       return toView(room, version + 1, me);

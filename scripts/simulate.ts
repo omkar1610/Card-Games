@@ -11,7 +11,7 @@ function assert(cond: unknown, msg: string): asserts cond {
 }
 
 const GAMES = 3000;
-let reveals = 0, marriages = 0, made = 0, doubles = 0;
+let reveals = 0, marriages = 0, made = 0, doubles = 0, early = 0;
 
 for (let g = 0; g < GAMES; g++) {
   const rng = seeded(g + 1);
@@ -25,6 +25,7 @@ for (let g = 0; g < GAMES; g++) {
       // occasionally someone declares marriage
       for (let s = 0; s < 4; s++) if (canDeclareMarriage(r, s) && rng() < 0.5) { m = applyAction(m, s, { type: "marriage" }, rng); marriages++; }
       const rr = m.round!;
+      if (rr.phase === "done") break; // a marriage can settle the round
       let action: Action;
       if (rr.phase === "bidding") {
         const min = rr.highBid === null ? 16 : rr.highBid + 1;
@@ -63,12 +64,22 @@ for (let g = 0; g < GAMES; g++) {
       m = applyAction(m, seat, { type: "play", card: legal.cards[Math.floor(rng() * legal.cards.length)] }, rng);
     }
     const r = m.round!;
-    assert(r.tricks.length === 8, "8 tricks");
-    assert(r.points.A + r.points.B === 28, "28 points total");
-    assert(r.hands.every((h) => h.length === 0), "hands empty");
+    const n = r.tricks.length;
     const all = r.tricks.flatMap((t) => t.cards.map((c) => c.card));
-    assert(new Set(all).size === 32, "every card played once");
-    assert(all.reduce((s, c) => s + pointsOf(c), 0) === 28, "points sum");
+    assert(new Set(all).size === n * 4, "every played card unique");
+    assert(all.reduce((s, c) => s + pointsOf(c), 0) === r.points.A + r.points.B, "points match cards played");
+    assert(r.hands.every((h) => h.length === 8 - n), "hands shrink evenly");
+    assert(r.result!.handsPlayed === n, "handsPlayed recorded");
+    if (n === 8) {
+      assert(r.points.A + r.points.B === 28, "28 points total");
+    } else {
+      early++;
+      // Ended early: the result must be beyond doubt even if every remaining point went the other way.
+      const bt = r.result!.bidderTeam;
+      const left = 28 - r.points.A - r.points.B;
+      if (r.result!.made) assert(r.points[bt] >= r.result!.target, "early made needs target reached");
+      else assert(r.points[bt] + left < r.result!.target, "early loss needs target out of reach");
+    }
     if (r.result!.made) made++;
     assert(Math.abs(r.result!.delta.A + r.result!.delta.B) === r.multiplier, "score delta = multiplier");
     m = applyAction(m, 0, { type: "nextRound" }, rng);
@@ -87,4 +98,4 @@ for (let g = 0; g < GAMES; g++) {
   assert(threw, "bid below 16 should throw");
 }
 
-console.log(`OK: ${GAMES * 3} rounds simulated. reveals=${reveals} marriages=${marriages} bids made=${made} doubles/redoubles=${doubles}`);
+console.log(`OK: ${GAMES * 3} rounds simulated. reveals=${reveals} marriages=${marriages} bids made=${made} doubles/redoubles=${doubles} endedEarly=${early}`);

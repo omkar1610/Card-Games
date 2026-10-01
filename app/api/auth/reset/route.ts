@@ -1,10 +1,12 @@
-import { DEFAULT_PASSWORD, isOnline, normalizeUsername, setPassword, userExists } from "@/lib/auth";
+import { setupProblem, DEFAULT_PASSWORD, isOnline, normalizeUsername, setPassword, userExists } from "@/lib/auth";
 import { error, json, readJson } from "@/lib/http";
 import { roomFor } from "@/lib/rooms";
 
 // Resets a forgotten password to the default. Not allowed while the account is in use,
 // so nobody can take over someone's seat.
 export async function POST(req: Request) {
+  const problem = setupProblem();
+  if (problem) return error(problem, 500);
   const body = await readJson(req);
   const username = normalizeUsername(body.username);
   if (!username || !(await userExists(username))) return error("No account with that username", 404);

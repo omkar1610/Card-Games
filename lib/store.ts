@@ -6,8 +6,13 @@ const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const redis = url && token ? new Redis({ url, token }) : null;
 
-if (!redis && process.env.VERCEL) {
-  console.error("No Redis configured: add the Upstash integration in Vercel, state will not persist.");
+/**
+ * On Vercel, in-memory storage silently breaks logins (every request may hit a different server),
+ * so refuse to run without Redis and say why.
+ */
+export function storageProblem(): string | null {
+  if (redis || !process.env.VERCEL) return null;
+  return "Server setup problem: no database connected. In Vercel, add Upstash Redis under Storage (it sets KV_REST_API_URL and KV_REST_API_TOKEN), then redeploy.";
 }
 
 type Entry = { value: unknown; expires: number | null };
@@ -68,6 +73,16 @@ return 1`;
 export async function versionGet(key: string): Promise<number> {
   const v = redis ? await redis.get<number>(key + ":v") : memGet(key + ":v");
   return Number(v ?? 0);
+}
+
+/** Value and version in one round trip. */
+export async function versionedGet<T>(key: string): Promise<{ value: T | null; version: number }> {
+  if (redis) {
+    const [value, v] = await redis.mget<[T | null, number | null]>(key, key + ":v");
+    return { value: value ?? null, version: Number(v ?? 0) };
+  }
+  const value = memGet(key);
+  return { value: value === null ? null : (structuredClone(value) as T), version: Number(memGet(key + ":v") ?? 0) };
 }
 
 export async function versionedWrite(

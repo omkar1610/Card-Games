@@ -374,13 +374,28 @@ a {
 }
 
 /* ---------- table (mobile first) ---------- */
+/* Phone-shaped column everywhere; on desktop it sits centred like a mobile app. */
 .game {
+  --app-w: min(100vw, 480px);
   height: 100dvh;
+  width: var(--app-w);
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--bg);
-  --card-w: clamp(50px, 14vw, 80px);
+  --card-w: calc(var(--app-w) * 0.15);
+}
+
+@media (min-width: 520px) {
+  body:has(.game) {
+    background: radial-gradient(ellipse at center, #10281d 0%, #050d09 100%);
+  }
+  .game {
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+  }
 }
 
 .topbar {
@@ -644,22 +659,22 @@ a {
 }
 
 .collect.to-n {
-  transform: translateY(-45vh) scale(0.4);
+  transform: translateY(-300px) scale(0.4);
   opacity: 0;
 }
 
 .collect.to-s {
-  transform: translateY(45vh) scale(0.4);
+  transform: translateY(300px) scale(0.4);
   opacity: 0;
 }
 
 .collect.to-e {
-  transform: translateX(55vw) scale(0.4);
+  transform: translateX(260px) scale(0.4);
   opacity: 0;
 }
 
 .collect.to-w {
-  transform: translateX(-55vw) scale(0.4);
+  transform: translateX(-260px) scale(0.4);
   opacity: 0;
 }
 
@@ -817,7 +832,7 @@ a {
 }
 
 .my-hand {
-  --card-w: min(80px, calc((100vw - 20px) / 5.6));
+  --card-w: calc((var(--app-w) - 20px) / 5.6);
   display: flex;
   justify-content: center;
   max-width: 100%;
@@ -920,40 +935,6 @@ a {
 
 .log {
   display: none;
-}
-
-@media (min-width: 900px) {
-  .game {
-    --card-w: clamp(56px, 6vw, 84px);
-  }
-  .felt {
-    grid-template-columns: 160px 1fr 160px;
-  }
-  .nameplate {
-    font-size: 15px;
-    padding: 6px 14px;
-  }
-  .stat-value {
-    font-size: 18px;
-  }
-  .log {
-    display: flex;
-    position: absolute;
-    right: 8px;
-    bottom: 8px;
-    width: 220px;
-    max-height: 140px;
-    overflow-y: auto;
-    font-size: 12px;
-    background: rgba(0, 0, 0, 0.35);
-    border-radius: 8px;
-    padding: 6px 8px;
-    color: var(--muted);
-    flex-direction: column-reverse;
-  }
-  .log b {
-    color: var(--text);
-  }
 }
 
 .card.tiny .pip,

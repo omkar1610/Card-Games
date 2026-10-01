@@ -1,4 +1,4 @@
-import { checkPassword, createUser, isOnline, logoutEverywhere, normalizeUsername, startSession, validPassword } from "@/lib/auth";
+import { setupProblem, checkPassword, createUser, isOnline, logoutEverywhere, normalizeUsername, startSession, validPassword } from "@/lib/auth";
 import { error, json, readJson } from "@/lib/http";
 import { roomFor } from "@/lib/rooms";
 
@@ -6,6 +6,8 @@ import { roomFor } from "@/lib/rooms";
 // must not be in use (open on another device or seated in a room) unless `force` is set, which
 // logs out every other session first and keeps the player's seat.
 export async function POST(req: Request) {
+  const problem = setupProblem();
+  if (problem) return error(problem, 500);
   const body = await readJson(req);
   const username = normalizeUsername(body.username);
   if (!username) return error("Username must be 3–20 letters, numbers or _");

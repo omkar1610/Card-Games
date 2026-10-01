@@ -31,10 +31,39 @@ game.start_round()
 # finish via game.finish_round()
 ```
 
+## Web app
+
+The Flask app provides a browser-based, shared-screen (hot-seat) table for bidding,
+trump selection, card play, and scoring. The game state is stored in Flask's signed
+session cookie, so no database is required.
+
+Run locally:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+
+Open <http://127.0.0.1:5000>. Set a persistent secret before running outside local
+development:
+
+```bash
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+```
+
+Deploy to Vercel by importing this repository as a Python project. The included
+`vercel.json` routes requests to `app.py`; configure `SECRET_KEY` in the Vercel
+project's environment variables so sessions continue to work across serverless
+invocations. The shared-screen UI exposes all four hands and is intended for local
+or trusted play, not private multiplayer.
+
 ## Tests
 
 Run:
 
 ```bash
+pip install -r requirements.txt
 python -m unittest discover -s tests
 ```

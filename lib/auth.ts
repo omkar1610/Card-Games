@@ -1,0 +1,125 @@
+import { SignJWT, jwtVerify } from "jose";
+import bcrypt from "bcryptjs";
+import { cookies } from "next/headers";
+import { kvDel, kvGet, kvSet, kvSetNew } from "./store";
+
+const COOKIE = "session";
+const SESSION_DAYS = 30;
+export const DEFAULT_PASSWORD = "1234";
+
+function secret() {
+  const s = process.env.AUTH_SECRET;
+  if (!s) {
+    if (process.env.VERCEL) throw new Error("AUTH_SECRET env var is required");
+    return new TextEncoder().encode("dev-only-secret-change-me");
+  }
+  return new TextEncoder().encode(s);
+}
+
+interface UserRecord {
+  username: string;
+  hash: string;
+  createdAt: number;
+  sessionVersion?: number; // bumped by "log out everywhere"; older sessions stop working
+}
+
+const userKey = (u: string) => `user:${u}`;
+
+export function normalizeUsername(u: unknown): string | null {
+  if (typeof u !== "string") return null;
+  const n = u.trim().toLowerCase();
+  return /^[a-z0-9_]{3,20}$/.test(n) ? n : null;
+}
+
+export function validPassword(p: unknown): p is string {
+  return typeof p === "string" && p.length >= 4 && p.length <= 100;
+}
+
+export async function userExists(username: string): Promise<boolean> {
+  return (await kvGet(userKey(username))) !== null;
+}
+
+/** Creates the user if the name is free. Returns false if it already exists. */
+export async function createUser(username: string, password: string): Promise<boolean> {
+  const rec: UserRecord = { username, hash: await bcrypt.hash(password, 10), createdAt: Date.now() };
+  return kvSetNew(userKey(username), rec);
+}
+
+export async function checkPassword(username: string, password: string): Promise<boolean> {
+  const rec = await kvGet<UserRecord>(userKey(username));
+  if (!rec) return false;
+  return bcrypt.compare(password, rec.hash);
+}
+
+export async function setPassword(username: string, password: string) {
+  const rec = await kvGet<UserRecord>(userKey(username));
+  if (!rec) throw new Error("User not found");
+  await kvSet(userKey(username), { ...rec, hash: await bcrypt.hash(password, 10) });
+}
+
+// Presence: a page that is open sends a heartbeat every PRESENCE_BEAT_MS; the key expires shortly after.
+export const PRESENCE_BEAT_MS = 20_000;
+const PRESENCE_TTL_S = 60;
+const presenceKey = (u: string) => `presence:${u}`;
+
+export async function markPresent(username: string) {
+  await kvSet(presenceKey(username), Date.now(), PRESENCE_TTL_S);
+}
+
+/** True if this user has a page open somewhere (heartbeat in the last minute). */
+export async function isOnline(username: string): Promise<boolean> {
+  return (await kvGet(presenceKey(username))) !== null;
+}
+
+/** Invalidates every existing session of this user. */
+export async function logoutEverywhere(username: string) {
+  const rec = await kvGet<UserRecord>(userKey(username));
+  if (!rec) return;
+  await kvSet(userKey(username), { ...rec, sessionVersion: (rec.sessionVersion ?? 0) + 1 });
+  await kvDel(presenceKey(username));
+}
+
+export async function startSession(username: string) {
+  await markPresent(username);
+  const rec = await kvGet<UserRecord>(userKey(username));
+  const jwt = await new SignJWT({ sv: rec?.sessionVersion ?? 0 })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(username)
+    .setIssuedAt()
+    .setExpirationTime(`${SESSION_DAYS}d`)
+    .sign(secret());
+  (await cookies()).set(COOKIE, jwt, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SESSION_DAYS * 24 * 3600,
+  });
+}
+
+export async function endSession(username: string | null) {
+  if (username) await kvDel(presenceKey(username));
+  (await cookies()).delete(COOKIE);
+}
+
+/**
+ * The logged-in username, or null. With `verify`, also checks the session wasn't revoked by
+ * "log out everywhere" (one extra read, so the 1-second room poll skips it; the heartbeat
+ * and every action do check, so a revoked device is kicked out within ~20s).
+ */
+export async function currentUser({ verify = true } = {}): Promise<string | null> {
+  const token = (await cookies()).get(COOKIE)?.value;
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, secret());
+    const user = payload.sub;
+    if (!user) return null;
+    if (verify) {
+      const rec = await kvGet<UserRecord>(userKey(user));
+      if (!rec || (rec.sessionVersion ?? 0) !== (payload.sv ?? 0)) return null;
+    }
+    return user;
+  } catch {
+    return null;
+  }
+}

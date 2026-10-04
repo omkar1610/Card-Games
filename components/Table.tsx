@@ -125,7 +125,9 @@ export default function Table({ view, game, act, send, error }: Props) {
 
   function headline(): string {
     if (r.phase === "bidding")
-      return r.highBid ? `High bid ${r.highBid} · ${name(r.bidder)}` : "Bidding · no bids yet (min 16)";
+      return r.highBid
+        ? `High bid ${r.highBid} · ${name(r.bidder)}${r.maxBid === 24 ? " · 25+ opens after a 24" : ""}`
+        : "Bidding · opening bid 16–24";
     if (r.phase === "trump")
       return r.bidder === me
         ? `You won the bid at ${r.highBid} · choose trump`
@@ -150,6 +152,7 @@ export default function Table({ view, game, act, send, error }: Props) {
     if (r.phase === "playing") {
       if (showLast && !myTurn)
         return { text: `${name(lastTrick!.winner)} won the hand (+${lastTrick!.points})`, mine: false };
+      if (myTurn && r.mustTrump) return { text: "You asked for trump: play a trump", mine: true };
       return myTurn ? { text: "Your turn", mine: true } : { text: `${name(r.turn)}'s turn`, mine: false };
     }
     return { text: "Round over", mine: false };
@@ -361,7 +364,7 @@ export default function Table({ view, game, act, send, error }: Props) {
 
           {r.phase === "bidding" && myTurn && (
             <div className="bid-grid">
-              {Array.from({ length: 28 - r.minBid + 1 }, (_, i) => r.minBid + i).map((v) => (
+              {Array.from({ length: Math.max(0, r.maxBid - r.minBid + 1) }, (_, i) => r.minBid + i).map((v) => (
                 <button key={v} className="btn primary" onClick={() => act({ type: "bid", value: v })}>
                   {v}
                 </button>

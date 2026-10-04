@@ -5,10 +5,12 @@
 //
 // Rules implemented (see README for details):
 //  - 32 cards (J 9 A 10 K Q 8 7), points J=3 9=2 A=1 10=1 → 28 total.
-//  - Deal 4 each, bid 16..28 (pass = out of the bidding). All pass → redeal with next dealer.
+//  - Deal 4 each, bid 16..28 (pass = out of the bidding). Bids are capped at 24 until someone has
+//    bid 24; after that any higher bid up to 28. All pass → redeal with next dealer.
 //  - Bid winner secretly chooses a trump suit (only they know it), then 4 more cards each.
+//    If the opponents then hold no trump between them, the same dealer redeals.
 //  - Must follow suit; anyone may lead any suit. A player who cannot follow may play any card,
-//    and may first "ask for trump" to have the bidder reveal the trump suit.
+//    or first "ask for trump" (revealing it), after which they must play a trump if they have one.
 //  - Until the reveal there is no trump: trump-suit cards are ordinary cards.
 //  - Marriage (K+Q of trump in one hand), declarable once trump is revealed:
 //    bidder's team → target −4 (min 16), other team → +4 (max 28).
@@ -26,6 +28,15 @@ export type Phase = "bidding" | "trump" | "double" | "redouble" | "playing" | "d
 
 export const MIN_BID = 16;
 export const MAX_BID = 28;
+/** Bids above this are only allowed once someone has bid exactly this. */
+export const BID_CAP = 24;
+
+export function bidRange(highBid: number | null): { min: number; max: number } {
+  return {
+    min: highBid === null ? MIN_BID : highBid + 1,
+    max: highBid !== null && highBid >= BID_CAP ? MAX_BID : BID_CAP,
+  };
+}
 export const MARRIAGE_DELTA = 4;
 export const GAME_POINTS = 6;
 
@@ -83,6 +94,7 @@ export interface Round {
   trumpRevealed: boolean;
   revealedBy: number | null;
   revealTrick: number | null;
+  mustTrump?: number | null; // seat that just asked for trump: must play one if they can
   leader: number;
   trick: PlayedCard[];
   tricks: Trick[];
@@ -189,6 +201,10 @@ export function legalPlays(r: Round, seat: number): Legal {
   const hand = r.hands[seat];
   if (r.trick.length === 0) return { cards: hand, canReveal: false };
 
+  if (r.mustTrump === seat) {
+    const trumps = hand.filter((c) => suitOf(c) === r.trumpSuit);
+    return { cards: trumps.length ? trumps : hand, canReveal: false };
+  }
   const led = suitOf(r.trick[0].card);
   const follow = hand.filter((c) => suitOf(c) === led);
   if (follow.length) return { cards: follow, canReveal: false };
@@ -222,7 +238,7 @@ export function applyAction(input: Match, seat: number, action: Action, rng: () 
       doBid(match, r, seat, action.type === "bid" ? action.value : null, rng);
       break;
     case "chooseTrump":
-      doChooseTrump(r, seat, action.suit);
+      doChooseTrump(match, r, seat, action.suit, rng);
       break;
     case "revealTrump":
       doReveal(r, seat);
@@ -265,8 +281,10 @@ function doBid(match: Match, r: Round, seat: number, value: number | null, rng: 
   if (r.turn !== seat) fail("Not your turn");
   if (value !== null) {
     if (!Number.isInteger(value)) fail("Bid must be a whole number");
-    const min = r.highBid === null ? MIN_BID : r.highBid + 1;
-    if (value < min || value > MAX_BID) fail(`Bid must be between ${min} and ${MAX_BID}`);
+    const { min, max } = bidRange(r.highBid);
+    if (min > max) fail("No higher bid is possible");
+    if (value < min || value > max)
+      fail(max === BID_CAP && value > BID_CAP ? `Bids above ${BID_CAP} open up only after someone bids ${BID_CAP}` : `Bid must be between ${min} and ${max}`);
     r.highBid = value;
     r.bidder = seat;
     r.log.push({ seat, text: `bid ${value}` });
@@ -295,7 +313,7 @@ function doBid(match: Match, r: Round, seat: number, value: number | null, rng: 
   r.turn = t;
 }
 
-function doChooseTrump(r: Round, seat: number, suit: Suit) {
+function doChooseTrump(match: Match, r: Round, seat: number, suit: Suit, rng: () => number) {
   if (r.phase !== "trump") fail("Not choosing trump now");
   if (seat !== r.bidder) fail("Only the bidder chooses trump");
   if (!SUITS.includes(suit)) fail("Pick a suit");
@@ -304,6 +322,19 @@ function doChooseTrump(r: Round, seat: number, suit: Suit) {
   const first = nextSeat(r.dealer);
   r.stock.forEach((c, i) => r.hands[(first + i) % 4].push(c));
   r.stock = [];
+
+  const bidderTeam = teamOf(seat);
+  const oppTrumps = [0, 1, 2, 3]
+    .filter((s) => teamOf(s) !== bidderTeam)
+    .reduce((n, s) => n + r.hands[s].filter((c) => suitOf(c) === suit).length, 0);
+  if (oppTrumps === 0) {
+    // Same dealer, same round number, fresh shuffle.
+    match.roundNumber -= 1;
+    startRound(match, rng);
+    match.round!.log.unshift({ seat: null, text: `the other team had no trump (${SUIT_SYMBOL[suit]}) — redealt` });
+    return;
+  }
+
   r.target = r.highBid;
   r.phase = "double";
   r.declined = [false, false, false, false];
@@ -353,6 +384,7 @@ function doReveal(r: Round, seat: number) {
   const legal = legalPlays(r, seat);
   if (!legal.canReveal) fail("You can't ask for trump now");
   reveal(r, seat);
+  r.mustTrump = seat;
   r.log.push({ seat, text: `asked for trump — trump is ${SUIT_SYMBOL[r.trumpSuit!]}` });
 }
 
@@ -363,6 +395,7 @@ function doPlay(match: Match, r: Round, seat: number, card: Card) {
   const hand = r.hands[seat];
   hand.splice(hand.indexOf(card), 1);
   r.trick.push({ seat, card });
+  r.mustTrump = null;
 
   if (r.trick.length < 4) {
     r.turn = nextSeat(seat);
@@ -486,6 +519,8 @@ export interface PlayerView {
     legal: Legal;
     canMarriage: boolean;
     minBid: number;
+    maxBid: number;
+    mustTrump: boolean; // I asked for trump and must play one
   };
 }
 
@@ -531,7 +566,9 @@ export function viewFor(match: Match, seat: number): PlayerView {
       log: r.log,
       legal: legalPlays(r, seat),
       canMarriage: canDeclareMarriage(r, seat),
-      minBid: r.highBid === null ? MIN_BID : r.highBid + 1,
+      minBid: bidRange(r.highBid).min,
+      maxBid: bidRange(r.highBid).max,
+      mustTrump: r.mustTrump === seat && r.hands[seat].some((c) => suitOf(c) === r.trumpSuit),
     },
   };
 }

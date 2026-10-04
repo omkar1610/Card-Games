@@ -1,5 +1,5 @@
 // Engine smoke test: plays many random games with random legal moves and checks invariants.
-import { applyAction, newMatch, viewFor, legalPlays, canDeclareMarriage, doubleDeciders, Match, Action } from "../lib/engine/game";
+import { applyAction, newMatch, viewFor, legalPlays, canDeclareMarriage, doubleDeciders, bidRange, Match, Action } from "../lib/engine/game";
 import { pointsOf } from "../lib/engine/cards";
 
 function seeded(seed: number) {
@@ -11,7 +11,7 @@ function assert(cond: unknown, msg: string): asserts cond {
 }
 
 const GAMES = 3000;
-let reveals = 0, marriages = 0, made = 0, doubles = 0, early = 0;
+let reveals = 0, marriages = 0, made = 0, doubles = 0, early = 0, redeals = 0, highBids = 0;
 
 for (let g = 0; g < GAMES; g++) {
   const rng = seeded(g + 1);
@@ -19,7 +19,7 @@ for (let g = 0; g < GAMES; g++) {
   for (let round = 0; round < 3; round++) {
     let guard = 0;
     while (m.round!.phase !== "done") {
-      assert(guard++ < 500, "stuck");
+      assert(guard++ < 2000, "stuck");
       const r = m.round!;
       const seat = r.turn;
       // occasionally someone declares marriage
@@ -28,16 +28,31 @@ for (let g = 0; g < GAMES; g++) {
       if (rr.phase === "done") break; // a marriage can settle the round
       let action: Action;
       if (rr.phase === "bidding") {
-        const min = rr.highBid === null ? 16 : rr.highBid + 1;
-        action = min <= 28 && rng() < 0.4 ? { type: "bid", value: Math.min(28, min + Math.floor(rng() * 2)) } : { type: "pass" };
+        const { min, max } = bidRange(rr.highBid);
+        // bids over 24 must be refused until someone has bid 24
+        if (max === 24 && min <= 24) {
+          let threw = false;
+          try { applyAction(m, seat, { type: "bid", value: 25 }, rng); } catch { threw = true; }
+          assert(threw, "25 allowed before anyone bid 24");
+        }
+        action = min <= max && rng() < 0.45 ? { type: "bid", value: min + Math.floor(rng() * (max - min + 1) * 0.3) } : { type: "pass" };
         m = applyAction(m, seat, action, rng);
+        if (action.type === "bid" && action.value > 24) highBids++;
         continue;
       }
       if (rr.phase === "trump") {
         const hand = rr.hands[seat];
         assert(hand.length === 4, "bidder should have 4 cards when choosing trump");
-        m = applyAction(m, seat, { type: "chooseTrump", suit: (["S", "H", "D", "C"] as const)[Math.floor(rng() * 4)] }, rng);
+        const suit = (["S", "H", "D", "C"] as const)[Math.floor(rng() * 4)];
+        m = applyAction(m, seat, { type: "chooseTrump", suit }, rng);
+        if (m.round!.phase === "bidding") {
+          redeals++; // opponents held no trump: same dealer, fresh deal
+          assert(m.round!.dealer === rr.dealer && m.round!.number === rr.number, "redeal keeps dealer and round number");
+          continue;
+        }
         assert(m.round!.hands.every((h) => h.length === 8), "8 cards each after trump chosen");
+        const opp = [0, 1, 2, 3].filter((s) => s % 2 !== seat % 2);
+        assert(opp.some((s) => m.round!.hands[s].some((c) => c.endsWith(suit))), "opponents hold at least one trump");
         assert(viewFor(m, (seat + 1) % 4).round!.trumpSuit === null, "trump suit hidden from others");
         assert(viewFor(m, seat).round!.trumpSuit !== null, "bidder sees trump suit");
         continue;
@@ -55,6 +70,10 @@ for (let g = 0; g < GAMES; g++) {
       if (legal.canReveal && rng() < 0.5) {
         m = applyAction(m, seat, { type: "revealTrump" }, rng);
         reveals++;
+        const after = legalPlays(m.round!, seat);
+        const trumps = m.round!.hands[seat].filter((c) => c.endsWith(m.round!.trumpSuit!));
+        if (trumps.length) assert(after.cards.every((c) => trumps.includes(c)), "asker must play trump if they have one");
+        else assert(after.cards.length === m.round!.hands[seat].length, "asker with no trump may play anything");
         continue;
       }
       assert(legal.cards.length > 0, "no legal cards");
@@ -127,4 +146,4 @@ for (let g = 0; g < GAMES; g++) {
   assert(threw, "bid below 16 should throw");
 }
 
-console.log(`OK: ${GAMES * 3} rounds simulated. reveals=${reveals} marriages=${marriages} bids made=${made} doubles/redoubles=${doubles} endedEarly=${early}`);
+console.log(`OK: ${GAMES * 3} rounds simulated. reveals=${reveals} marriages=${marriages} bids made=${made} doubles/redoubles=${doubles} endedEarly=${early} noTrumpRedeals=${redeals} bidsOver24=${highBids}`);

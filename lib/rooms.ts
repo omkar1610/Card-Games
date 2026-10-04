@@ -171,6 +171,7 @@ export type RoomOp =
   | { op: "end" }
   | { op: "addBot"; seat: number }
   | { op: "removeBot"; seat: number }
+  | { op: "takeSeat"; seat: number } // join a game in progress by replacing a bot
   | { op: "action"; action: Action };
 
 function mutate(room: Room, me: string, body: RoomOp, myName: string) {
@@ -206,6 +207,15 @@ function mutate(room: Room, me: string, body: RoomOp, myName: string) {
         if (!isBotName(room.seats[seat])) throw new RoomError("That seat isn't a bot");
         room.seats[seat] = null;
       }
+      return;
+    }
+    case "takeSeat": {
+      if (!room.match) throw new RoomError("The game hasn't started; just sit down");
+      if (seated) throw new RoomError("You already have a seat");
+      const seat = body.seat;
+      if (!Number.isInteger(seat) || !isBotName(room.seats[seat])) throw new RoomError("That seat isn't a bot");
+      room.seats[seat] = me; // keeps the bot's cards, team and score
+      room.names = { ...room.names, [me]: myName };
       return;
     }
     case "start": {
@@ -248,7 +258,8 @@ export async function updateRoom(
   sessionOk: Promise<boolean> = Promise.resolve(true),
 ): Promise<RoomView> {
   let myName = me;
-  if (body.op === "sit") [myName] = await Promise.all([getDisplayName(me), assertFree(me, code)]);
+  if (body.op === "sit" || body.op === "takeSeat")
+    [myName] = await Promise.all([getDisplayName(me), assertFree(me, code)]);
   for (let attempt = 0; attempt < 8; attempt++) {
     const { room, version } = await load(code);
     const before = room.seats.slice();

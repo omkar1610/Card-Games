@@ -100,15 +100,35 @@ export default function RoomClient({ code }: { code: string }) {
 
   if (!view.started) return <Lobby view={view} send={send} error={error} />;
 
-  if (!view.game)
+  if (!view.game) {
+    const botSeats = view.seats.flatMap((u, seat) => (u?.startsWith("bot:") ? [seat] : []));
     return (
       <main className="center-page">
         <div className="panel">
-          <p>This game has already started and you are not one of the players.</p>
+          <p>This game has already started.</p>
+          {botSeats.length > 0 ? (
+            <>
+              <p className="hint">Take over a bot to join. You keep its cards and its team&apos;s score.</p>
+              {error && <p className="error">{error}</p>}
+              {botSeats.map((seat) => (
+                <button
+                  key={seat}
+                  className="btn primary block"
+                  style={{ marginBottom: 8 }}
+                  onClick={() => send({ op: "takeSeat", seat })}
+                >
+                  Take {view.names[seat]?.replace(/^bot:/, "")}&apos;s seat · Team {seat % 2 === 0 ? "A" : "B"}
+                </button>
+              ))}
+            </>
+          ) : (
+            <p className="hint">All four seats are taken by players.</p>
+          )}
           <Link href="/home">Back home</Link>
         </div>
       </main>
     );
+  }
 
   return <Table view={view} game={view.game} act={act} send={send} error={error} />;
 }

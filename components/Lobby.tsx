@@ -57,13 +57,13 @@ export default function Lobby({ view, send, error }: { view: RoomView; send: (b:
                   </button>
                 )}
                 {!user && canManage && (
-                  <button className="seat-action bot" onClick={() => send({ op: "addBot", seat })}>
-                    + Bot
+                  <button className="seat-pill" onClick={() => send({ op: "addBot", seat })}>
+                    + Add bot
                   </button>
                 )}
                 {bot && canManage && (
-                  <button className="seat-action bot" onClick={() => send({ op: "removeBot", seat })}>
-                    Remove
+                  <button className="seat-pill remove" onClick={() => send({ op: "removeBot", seat })}>
+                    ✕ Remove bot
                   </button>
                 )}
                 {user === view.host && <span className="team-label">host</span>}

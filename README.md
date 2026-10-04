@@ -36,7 +36,7 @@ npm run dev
 
 Without Redis configured, state lives in memory (fine for local testing).
 
-**Playing with bots:** in the lobby, tap **+ Bot** on any empty seat. Bots bid on hand strength, choose their strongest suit as trump, and play sensibly. They move when a player's screen checks for updates (Vercel has no always-on server), about once a second, with a longer pause after each hand. If every human closes the game, the bots wait.
+**Playing with bots:** in the lobby, tap **+ Add bot** on any empty seat, or **✕ Remove bot** to free it again. Once a game has started, a friend who opens the room link can **take over a bot's seat**, keeping its cards and team score. Bots bid on hand strength, choose their strongest suit as trump, and play sensibly. They move when a player's screen checks for updates (Vercel has no always-on server), about once a second, with a longer pause after each hand. If every human closes the game, the bots wait.
 
 **Sounds:** cards, dealing, your turn, hand collected, bids, trump reveal, marriage, double, round won/lost and game won/lost. They're synthesized in the browser, so there are no audio files. The 🔊 control at the top sets the volume, defaults to 60%, and is saved per device.
 

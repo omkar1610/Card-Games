@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getVolume, setVolume, sfx, unlockAudio } from "@/lib/sound";
+import { getVolume, installAudioUnlock, setVolume, sfx, unlockAudio } from "@/lib/sound";
+import { THEMES, Theme, getTheme, setTheme } from "@/lib/theme";
 
 /**
  * ⚙ menu in the top strip. Each setting is one row, so new ones can be added below
@@ -10,14 +11,14 @@ import { getVolume, setVolume, sfx, unlockAudio } from "@/lib/sound";
 export default function Settings({ onEndGame }: { onEndGame: () => void }) {
   const [open, setOpen] = useState(false);
   const [vol, setVol] = useState(0.6);
+  const [theme, setThemeState] = useState<Theme>("heritage");
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     setVol(getVolume());
-    // Browsers block audio until the first tap; unlock it then.
-    const unlock = () => unlockAudio();
-    window.addEventListener("pointerdown", unlock, { once: true });
-    return () => window.removeEventListener("pointerdown", unlock);
+    setThemeState(getTheme());
+    // Browsers block audio until a completed tap; keep trying until it's unlocked.
+    return installAudioUnlock();
   }, []);
 
   // Close when tapping outside the menu.
@@ -57,6 +58,37 @@ export default function Settings({ onEndGame }: { onEndGame: () => void }) {
               }}
               onPointerUp={() => sfx.card()}
             />
+            <button
+              className="btn block small"
+              style={{ marginTop: 8 }}
+              onClick={() => {
+                unlockAudio();
+                sfx.turn();
+                setTimeout(sfx.card, 250);
+              }}
+            >
+              ▶ Test sound
+            </button>
+          </div>
+          <div className="settings-row">
+            <div className="settings-label">
+              <span>🎨 Theme</span>
+            </div>
+            <div className="theme-pick">
+              {THEMES.map((t) => (
+                <button
+                  key={t.id}
+                  className={theme === t.id ? "on" : ""}
+                  aria-pressed={theme === t.id}
+                  onClick={() => {
+                    setTheme(t.id);
+                    setThemeState(t.id);
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="settings-row">
             <button

@@ -5,6 +5,7 @@
   --felt-dark: #143640;
   --bg: #16152b; /* indigo night */
   --bg-deep: #0e0d1d;
+  --page-glow: #26244a;
   --panel: rgba(38, 36, 74, 0.85);
   --panel-solid: #22203f;
   --panel-border: rgba(201, 160, 74, 0.35);
@@ -61,7 +62,7 @@ a {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: radial-gradient(ellipse at center, #26244a 0%, var(--bg) 60%, var(--bg-deep) 100%);
+  background: radial-gradient(ellipse at center, var(--page-glow) 0%, var(--bg) 60%, var(--bg-deep) 100%);
 }
 
 .panel {
@@ -402,7 +403,7 @@ a {
 
 @media (min-width: 520px) {
   body:has(.game) {
-    background: radial-gradient(ellipse at center, #232146 0%, var(--bg-deep) 100%);
+    background: radial-gradient(ellipse at center, var(--page-glow) 0%, var(--bg-deep) 100%);
   }
   .game {
     box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
@@ -1467,4 +1468,88 @@ a {
   to {
     transform: translateY(110vh) translateX(40px) rotate(calc(var(--r) + 360deg));
   }
+}
+
+/* ================= Classic theme (original green), chosen in Settings ================= */
+:root[data-theme="classic"] {
+  --felt: #0f5132;
+  --felt-light: #17734a;
+  --felt-dark: #0a3a24;
+  --bg: #0b1f17;
+  --bg-deep: #08170f;
+  --page-glow: #0f5132;
+  --panel: rgba(0, 0, 0, 0.35);
+  --panel-solid: #12291f;
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --text: #f1f5f2;
+  --muted: #a8bdb2;
+  --gold: #f5c542;
+  --gold-light: #ffd668;
+  --gold-line: rgba(255, 255, 255, 0.25);
+  --on-gold: #1d1600;
+  --team-a: #4ea8ff;
+  --team-a-fill: #2f86e0;
+  --team-b: #ff9f43;
+  --team-b-fill: #f08a2a;
+  --maroon: #8b1e2d;
+  --card-face: #fdfdf8;
+  --card-ink: #1a1a1a;
+  --suit-red: #c8102e;
+}
+
+:root[data-theme="classic"] .felt::before {
+  display: none;
+}
+
+:root[data-theme="classic"] .felt {
+  border-top: none;
+}
+
+:root[data-theme="classic"] .card {
+  border: 1px solid #cfcfc4;
+}
+
+:root[data-theme="classic"] .card.back,
+:root[data-theme="classic"] .flip-back {
+  background-image: repeating-linear-gradient(45deg, #8b1e2d 0 6px, #a32638 6px 12px);
+  background-size: auto;
+  border: 3px solid var(--card-face);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="classic"] .logo,
+:root[data-theme="classic"] .room-code,
+:root[data-theme="classic"] .stat-value,
+:root[data-theme="classic"] .result-card h2,
+:root[data-theme="classic"] .result-card .big,
+:root[data-theme="classic"] .winner-banner {
+  font-family: var(--font-ui), system-ui, sans-serif;
+  font-weight: 800;
+}
+
+:root[data-theme="classic"] .petal {
+  background: #f5c542;
+}
+
+/* theme picker */
+.theme-pick {
+  display: flex;
+  gap: 6px;
+}
+
+.theme-pick button {
+  flex: 1;
+  border-radius: 8px;
+  padding: 7px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.theme-pick button.on {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: var(--on-gold);
 }

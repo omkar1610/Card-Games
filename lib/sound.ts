@@ -52,10 +52,70 @@ function audio(): AudioContext | null {
   return ctx;
 }
 
-/** Call from a user gesture (first tap) so later sounds are allowed to play. */
+let silentEl: HTMLAudioElement | null = null;
+
+/**
+ * Call from user gestures. Browsers (iOS Safari especially) only allow audio after a completed tap,
+ * and the iPhone silent switch mutes Web Audio unless the page plays as "media"; both are handled here.
+ */
 export function unlockAudio() {
-  audio();
+  if (typeof window === "undefined") return;
+  // iOS 17+: treat our sounds as media playback so the silent switch doesn't mute them.
+  const nav = navigator as unknown as { audioSession?: { type: string } };
+  if (nav.audioSession) {
+    try {
+      nav.audioSession.type = "playback";
+    } catch {
+      // older Safari: ignore
+    }
+  }
+  // Older iOS: playing a (silent) media element during a tap switches the page to media playback too.
+  if (!silentEl) {
+    silentEl = new Audio(SILENT_WAV);
+    silentEl.setAttribute("playsinline", "");
+    silentEl.loop = true;
+    silentEl.volume = 0.01;
+  }
+  silentEl.play().catch(() => {});
+  const a = audio();
+  // A one-sample blip inside the gesture is what finally unlocks Safari's AudioContext.
+  if (a && master) {
+    const src = a.createBufferSource();
+    src.buffer = a.createBuffer(1, 1, 22050);
+    src.connect(master);
+    src.start(0);
+  }
 }
+
+/** True once audio is actually allowed to play. */
+export function audioReady(): boolean {
+  return !!ctx && ctx.state === "running";
+}
+
+/**
+ * Keeps trying to unlock on every kind of tap/key until audio is running, and resumes it when the
+ * player comes back to the tab (phones suspend audio in the background). Returns a cleanup function.
+ */
+export function installAudioUnlock(): () => void {
+  const events = ["pointerup", "touchend", "click", "keydown"] as const;
+  const onGesture = () => {
+    unlockAudio();
+    if (audioReady()) events.forEach((e) => window.removeEventListener(e, onGesture, true));
+  };
+  const onVisible = () => {
+    if (!document.hidden && ctx && ctx.state !== "running") ctx.resume().catch(() => {});
+  };
+  events.forEach((e) => window.addEventListener(e, onGesture, true));
+  document.addEventListener("visibilitychange", onVisible);
+  return () => {
+    events.forEach((e) => window.removeEventListener(e, onGesture, true));
+    document.removeEventListener("visibilitychange", onVisible);
+  };
+}
+
+// 0.1s of silence as a WAV data URI (used only to switch iOS into media playback).
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
 
 interface ToneOpts {
   freq: number;

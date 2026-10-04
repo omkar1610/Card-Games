@@ -1,16 +1,29 @@
 :root {
-  --felt: #0f5132;
-  --felt-dark: #0a3a24;
-  --bg: #0b1f17;
-  --panel: rgba(0, 0, 0, 0.35);
-  --panel-solid: #12291f;
-  --text: #f1f5f2;
-  --muted: #a8bdb2;
-  --gold: #f5c542;
-  --team-a: #4ea8ff;
-  --team-b: #ff9f43;
-  --danger: #ff6b6b;
-  --ok: #4cd97b;
+  /* Heritage Evening */
+  --felt: #1f4e5a; /* teal velvet */
+  --felt-light: #2a6370;
+  --felt-dark: #143640;
+  --bg: #16152b; /* indigo night */
+  --bg-deep: #0e0d1d;
+  --panel: rgba(38, 36, 74, 0.85);
+  --panel-solid: #22203f;
+  --panel-border: rgba(201, 160, 74, 0.35);
+  --text: #f3e6c6; /* cream */
+  --muted: #b9ab8a;
+  --gold: #e8b04a; /* marigold */
+  --gold-light: #f2cd7e;
+  --gold-line: #c9a04a;
+  --on-gold: #2a1a05;
+  --team-a: #93a5f4; /* indigo (text on dark) */
+  --team-a-fill: #5b6bd6;
+  --team-b: #f2a94a; /* saffron */
+  --team-b-fill: #e39a2c;
+  --maroon: #7a1f2b;
+  --card-face: #fbf4e4;
+  --card-ink: #1b1a33;
+  --suit-red: #a8202e;
+  --danger: #ff7a7a;
+  --ok: #8fd694;
   --card-w: clamp(46px, 7.2vw, 78px);
   --card-h: calc(var(--card-w) * 1.42);
   --radius: 10px;
@@ -26,7 +39,7 @@ body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-ui, ui-sans-serif), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 button {
@@ -48,7 +61,7 @@ a {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: radial-gradient(ellipse at center, var(--felt) 0%, var(--felt-dark) 70%, var(--bg) 100%);
+  background: radial-gradient(ellipse at center, #26244a 0%, var(--bg) 60%, var(--bg-deep) 100%);
 }
 
 .panel {
@@ -128,11 +141,11 @@ a {
 
 .btn.primary {
   background: var(--gold);
-  color: #1d1600;
+  color: var(--on-gold);
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: #ffd668;
+  background: var(--gold-light);
 }
 
 .btn.block {
@@ -259,7 +272,7 @@ a {
 }
 
 .seat-slot.me {
-  background: rgba(245, 197, 66, 0.12);
+  background: rgba(232, 176, 74, 0.14);
 }
 
 .seat-slot .team-label {
@@ -319,8 +332,8 @@ a {
   width: var(--card-w);
   height: var(--card-h);
   border-radius: calc(var(--card-w) * 0.1);
-  background: #fdfdf8;
-  color: #1a1a1a;
+  background: var(--card-face);
+  color: var(--card-ink);
   position: relative;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   user-select: none;
@@ -329,7 +342,7 @@ a {
 }
 
 .card.red {
-  color: #c8102e;
+  color: var(--suit-red);
 }
 
 .card .corner {
@@ -366,7 +379,7 @@ a {
 
 .card.back {
   background: repeating-linear-gradient(45deg, #8b1e2d 0 6px, #a32638 6px 12px);
-  border: 3px solid #fdfdf8;
+  border: 3px solid var(--card-face);
 }
 
 .card.mini {
@@ -389,7 +402,7 @@ a {
 
 @media (min-width: 520px) {
   body:has(.game) {
-    background: radial-gradient(ellipse at center, #10281d 0%, #050d09 100%);
+    background: radial-gradient(ellipse at center, #232146 0%, var(--bg-deep) 100%);
   }
   .game {
     box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
@@ -403,7 +416,7 @@ a {
   flex-direction: column;
   gap: 4px;
   padding: 4px 6px 6px;
-  background: #08170f;
+  background: var(--bg-deep);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -493,7 +506,7 @@ a {
 }
 
 .trump-suit.red {
-  color: #ff5a6e;
+  color: #f2707c;
 }
 
 .hands-track {
@@ -516,12 +529,12 @@ a {
 
 .hand-slot.A {
   background: var(--team-a);
-  color: #001a33;
+  color: #0b0f33;
 }
 
 .hand-slot.B {
   background: var(--team-b);
-  color: #331a00;
+  color: #2a1a05;
 }
 
 .last-hand {
@@ -544,7 +557,7 @@ a {
 .felt {
   flex: 1;
   position: relative;
-  background: radial-gradient(ellipse at center, #17734a 0%, var(--felt) 45%, var(--felt-dark) 100%);
+  background: radial-gradient(ellipse at center, var(--felt-light) 0%, var(--felt) 50%, var(--felt-dark) 100%);
   display: grid;
   grid-template-columns: 64px 1fr 64px;
   grid-template-rows: auto 1fr auto;
@@ -618,7 +631,7 @@ a {
   border-radius: 8px;
   padding: 1px 5px;
   background: var(--gold);
-  color: #1d1600;
+  color: var(--on-gold);
 }
 
 .chip.dealer {
@@ -781,7 +794,7 @@ a {
   left: 50%;
   transform: translateX(-50%);
   background: var(--gold);
-  color: #1d1600;
+  color: var(--on-gold);
   font-weight: 700;
   font-size: 13px;
   padding: 5px 12px;
@@ -827,7 +840,7 @@ a {
 
 .status-text.mine {
   background: var(--gold);
-  color: #1d1600;
+  color: var(--on-gold);
   font-weight: 700;
 }
 
@@ -895,12 +908,12 @@ a {
   width: 58px;
   height: 58px;
   padding: 0;
-  background: #fdfdf8;
+  background: var(--card-face);
   color: #111;
 }
 
 .suit-pick .btn.red {
-  color: #c8102e;
+  color: var(--suit-red);
 }
 
 .overlay {
@@ -1068,12 +1081,12 @@ a {
 
 .flip-back {
   background: repeating-linear-gradient(45deg, #8b1e2d 0 4px, #a32638 4px 8px);
-  border: 2px solid #fdfdf8;
+  border: 2px solid var(--card-face);
 }
 
 .flip-front {
   transform: rotateY(180deg);
-  background: #fdfdf8;
+  background: var(--card-face);
   color: #111;
   display: grid;
   place-items: center;
@@ -1083,7 +1096,7 @@ a {
 
 .flip-front.red,
 .trump-peek.red {
-  color: #ff5a6e;
+  color: #f2707c;
 }
 
 .trump-peek {
@@ -1135,4 +1148,323 @@ a {
   padding: 1px 8px;
   border-radius: 0 0 6px 0;
   pointer-events: none;
+}
+
+/* ================= Heritage Evening details ================= */
+
+.logo,
+.room-code,
+.stat-value,
+.result-card h2,
+.result-card .big,
+.winner-banner {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+
+.logo span,
+.room-code {
+  color: var(--gold);
+}
+
+.panel,
+.result-card {
+  background: var(--panel-solid);
+  border: 1px solid var(--panel-border);
+}
+
+.btn.primary {
+  background: var(--gold);
+  color: var(--on-gold);
+}
+
+.btn.danger {
+  background: var(--maroon);
+  color: var(--text);
+  border: 1px solid var(--gold-line);
+}
+
+.hand-slot.A,
+.seat-slot.team-A {
+  border-color: var(--team-a-fill);
+}
+
+.hand-slot.A {
+  background: var(--team-a-fill);
+  color: #fff;
+}
+
+.hand-slot.B {
+  background: var(--team-b-fill);
+  color: var(--on-gold);
+}
+
+/* scoreboard ribbon */
+.stat {
+  background: var(--panel);
+  border: 1px solid rgba(201, 160, 74, 0.18);
+}
+
+.stat-label {
+  color: var(--muted);
+}
+
+/* table: velvet cloth with a gold rim and a faint weave */
+.felt {
+  border-top: 2px solid var(--gold-line);
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.45);
+}
+
+.felt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: repeating-linear-gradient(45deg, #fff 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, #fff 0 1px, transparent 1px 6px);
+}
+
+/* cards: cream with a fine gold edge */
+.card {
+  border: 1px solid #d9c08a;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* card back: maroon with a gold lattice and border */
+.card.back,
+.flip-back {
+  background-color: var(--maroon);
+  background-image: linear-gradient(45deg, transparent 46%, rgba(232, 176, 74, 0.55) 47%, rgba(232, 176, 74, 0.55) 53%, transparent 54%),
+    linear-gradient(-45deg, transparent 46%, rgba(232, 176, 74, 0.55) 47%, rgba(232, 176, 74, 0.55) 53%, transparent 54%);
+  background-size: 9px 9px;
+  border: 2px solid var(--gold-light);
+  box-shadow: inset 0 0 0 2px var(--maroon), inset 0 0 0 3px rgba(242, 205, 126, 0.6);
+}
+
+.flip-front {
+  background: var(--card-face);
+  color: var(--card-ink);
+  border: 1px solid var(--gold-line);
+}
+
+.flip-front.red {
+  color: var(--suit-red);
+}
+
+/* other players: avatar with turn ring */
+.seat-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  border: 2px solid rgba(243, 230, 198, 0.5);
+  transition: box-shadow 0.2s;
+}
+
+.avatar.team-A {
+  background: var(--team-a-fill);
+  color: #fff;
+}
+
+.avatar.team-B {
+  background: var(--team-b-fill);
+  color: var(--on-gold);
+}
+
+.avatar.small {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+  border-width: 1px;
+}
+
+.seat-badge.turn .avatar {
+  box-shadow: 0 0 0 3px var(--gold-light), 0 0 18px var(--gold);
+  animation: ring 1.4s infinite;
+}
+
+@keyframes ring {
+  50% {
+    box-shadow: 0 0 0 3px var(--gold-light), 0 0 4px var(--gold);
+  }
+}
+
+.pname {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.pchips {
+  display: flex;
+  gap: 3px;
+}
+
+.nameplate.me {
+  background: rgba(14, 13, 29, 0.6);
+  padding: 3px 10px 3px 4px;
+}
+
+.nameplate.team-A {
+  border-color: var(--team-a-fill);
+}
+
+.nameplate.team-B {
+  border-color: var(--team-b-fill);
+}
+
+.chip {
+  background: var(--gold);
+  color: var(--on-gold);
+}
+
+.chip.dealer {
+  background: var(--card-face);
+  color: var(--card-ink);
+}
+
+.status-text.mine,
+.toast {
+  background: var(--gold);
+  color: var(--on-gold);
+}
+
+.feed .headline {
+  background: rgba(14, 13, 29, 0.7);
+  border: 1px solid var(--panel-border);
+}
+
+.trick-card.winner .card,
+.last-hand .card.won {
+  box-shadow: 0 0 0 3px var(--gold-light), 0 0 18px var(--gold);
+}
+
+/* settings menu */
+.settings {
+  position: relative;
+}
+
+.settings-btn {
+  background: none;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+}
+
+.settings-menu {
+  position: absolute;
+  right: 0;
+  top: 22px;
+  z-index: 30;
+  width: 220px;
+  background: var(--panel-solid);
+  border: 1px solid var(--gold-line);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-row {
+  padding: 8px 6px;
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid rgba(201, 160, 74, 0.2);
+}
+
+.settings-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.settings-value {
+  color: var(--gold);
+}
+
+.settings-menu input[type="range"] {
+  width: 100%;
+  accent-color: var(--gold);
+}
+
+.settings-menu .btn {
+  font-size: 13px;
+  padding: 8px;
+}
+
+/* game won: gold divider and falling marigold petals */
+.divider-motif {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--gold-light);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.divider-motif span {
+  width: 50px;
+  height: 1px;
+  background: var(--gold-line);
+}
+
+.winner-banner {
+  font-size: clamp(22px, 6.4vw, 30px);
+  white-space: nowrap;
+}
+
+.petals {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.petal {
+  position: absolute;
+  top: -20px;
+  left: var(--x);
+  width: 11px;
+  height: 15px;
+  border-radius: 50% 50% 50% 0;
+  background: var(--gold);
+  opacity: 0.9;
+  animation: petal-fall var(--t) linear var(--d) infinite;
+}
+
+.petal:nth-child(3n) {
+  background: #d9622b;
+}
+
+@keyframes petal-fall {
+  from {
+    transform: translateY(0) rotate(var(--r));
+  }
+  to {
+    transform: translateY(110vh) translateX(40px) rotate(calc(var(--r) + 360deg));
+  }
 }

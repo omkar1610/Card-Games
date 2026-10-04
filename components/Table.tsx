@@ -5,7 +5,7 @@ import type { RoomView } from "@/lib/rooms";
 import type { Action, PlayerView, Team } from "@/lib/engine/game";
 import { SUITS, SUIT_SYMBOL, SUIT_NAME, Suit } from "@/lib/engine/cards";
 import { CardBack, CardFace } from "./Card";
-import VolumeControl from "./VolumeControl";
+import Settings from "./Settings";
 import { displayName } from "@/lib/names";
 import { sfx } from "@/lib/sound";
 
@@ -212,13 +212,34 @@ export default function Table({ view, game, act, send, error }: Props) {
     await send({ op: "end" });
   }
 
-  const nameplate = (seat: number) => (
-    <div className={`nameplate team-${teamOf(seat)} ${isTurn(seat) ? "turn" : ""}`}>
-      <span>{seat === me ? view.me : name(seat)}</span>
-      {seat === r.dealer && <span className="chip dealer">D</span>}
-      {seat === r.bidder && r.phase !== "bidding" && <span className="chip">{r.highBid}</span>}
-    </div>
+  const initials = (seat: number) => {
+    const u = view.seats[seat] ?? "?";
+    return u.startsWith("bot:") ? "🤖" : u.slice(0, 2).toUpperCase();
+  };
+  const chips = (seat: number) => (
+    <>
+      {seat === r.dealer && <span className="chip dealer" title="Dealer">D</span>}
+      {seat === r.bidder && r.phase !== "bidding" && <span className="chip" title="Bidder">{r.highBid}</span>}
+    </>
   );
+  // Other players: avatar circle (glowing ring on their turn) with name and chips underneath.
+  // Me: one compact row, to leave room for the hand.
+  const nameplate = (seat: number) =>
+    seat === me ? (
+      <div className={`nameplate me team-${teamOf(seat)} ${isTurn(seat) ? "turn" : ""}`}>
+        <span className={`avatar small team-${teamOf(seat)}`}>{initials(seat)}</span>
+        <span>
+          {view.me} · Team {teamOf(seat)}
+        </span>
+        {chips(seat)}
+      </div>
+    ) : (
+      <div className={`seat-badge team-${teamOf(seat)} ${isTurn(seat) ? "turn" : ""}`}>
+        <span className={`avatar team-${teamOf(seat)}`}>{initials(seat)}</span>
+        <span className="pname">{(view.seats[seat] ?? "?").replace(/^bot:/, "")}</span>
+        <span className="pchips">{chips(seat)}</span>
+      </div>
+    );
 
   const seatBubble = (seat: number) => {
     if (r.phase === "bidding") {
@@ -239,10 +260,7 @@ export default function Table({ view, game, act, send, error }: Props) {
           <span>Room {view.code}</span>
           <span className="ta">A: {teamNames("A")}</span>
           <span className="tb">B: {teamNames("B")}</span>
-          <VolumeControl />
-          <button className="end-btn" onClick={endGame}>
-            End game
-          </button>
+          <Settings onEndGame={endGame} />
         </div>
 
         <div className="stats-row">
@@ -515,6 +533,25 @@ export default function Table({ view, game, act, send, error }: Props) {
               </p>
               {game.winner ? (
                 <div className="game-over">
+                  <div className="petals" aria-hidden>
+                    {Array.from({ length: 18 }, (_, i) => (
+                      <span
+                        key={i}
+                        className="petal"
+                        style={
+                          {
+                            "--x": `${(i * 37) % 100}%`,
+                            "--d": `${(i % 6) * 0.35}s`,
+                            "--t": `${3 + (i % 4) * 0.6}s`,
+                            "--r": `${(i * 53) % 360}deg`,
+                          } as React.CSSProperties
+                        }
+                      />
+                    ))}
+                  </div>
+                  <div className="divider-motif" aria-hidden>
+                    <span />◆<span />
+                  </div>
                   <div className={`winner-banner ${game.winner === "A" ? "ta" : "tb"}`}>
                     Team {game.winner} wins the game!
                   </div>

@@ -50,6 +50,11 @@ Without Redis configured, state lives in memory (fine for local testing).
    - `AUTH_SECRET`: a long random string (`openssl rand -base64 32`)
 4. Deploy. Everyone logs in with a username and password of their choice.
 
+## Staging
+
+- Work is pushed to the `staging` branch first. Vercel builds it as a preview deployment, which shows a **STAGING** badge. After it's checked there, `staging` is merged into `main` (production).
+- Staging shares the production Upstash database, but every key it uses is prefixed with `staging:`. Accounts, rooms and games on staging are completely separate from the live site.
+
 ## How it works
 
 - Vercel functions can't keep websockets open, so each browser polls `GET /api/rooms/CODE?v=N` once a second. The server returns `204` if nothing changed.

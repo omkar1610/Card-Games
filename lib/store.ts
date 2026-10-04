@@ -7,6 +7,14 @@ const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TO
 const redis = url && token ? new Redis({ url, token }) : null;
 
 /**
+ * Staging (Vercel preview deployments) shares the production database, so every key it uses is
+ * namespaced: "staging:user:omkar" instead of "user:omkar". Production keys are unchanged.
+ */
+export const IS_STAGING = process.env.VERCEL_ENV === "preview";
+const PREFIX = IS_STAGING ? "staging:" : "";
+const pk = (key: string) => PREFIX + key;
+
+/**
  * On Vercel, in-memory storage silently breaks logins (every request may hit a different server),
  * so refuse to run without Redis and say why.
  */
@@ -30,28 +38,28 @@ function memGet(key: string): unknown {
 }
 
 export async function kvGet<T>(key: string): Promise<T | null> {
-  if (redis) return (await redis.get<T>(key)) ?? null;
+  if (redis) return (await redis.get<T>(pk(key))) ?? null;
   const v = memGet(key);
   return v === null ? null : (structuredClone(v) as T);
 }
 
 export async function kvSet(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
   if (redis) {
-    await (ttlSeconds ? redis.set(key, value, { ex: ttlSeconds }) : redis.set(key, value));
+    await (ttlSeconds ? redis.set(pk(key), value, { ex: ttlSeconds }) : redis.set(pk(key), value));
     return;
   }
   mem.set(key, { value: structuredClone(value), expires: ttlSeconds ? Date.now() + ttlSeconds * 1000 : null });
 }
 
 export async function kvDel(key: string): Promise<void> {
-  if (redis) await redis.del(key);
+  if (redis) await redis.del(pk(key));
   else mem.delete(key);
 }
 
 /** Set only if the key doesn't exist. Returns true if written. */
 export async function kvSetNew(key: string, value: unknown, ttlSeconds?: number): Promise<boolean> {
   if (redis) {
-    const res = await redis.set(key, value, ttlSeconds ? { nx: true, ex: ttlSeconds } : { nx: true });
+    const res = await redis.set(pk(key), value, ttlSeconds ? { nx: true, ex: ttlSeconds } : { nx: true });
     return res === "OK";
   }
   if (memGet(key) !== null) return false;
@@ -71,13 +79,13 @@ return 1`;
  * Writes succeed only if nobody else wrote in between (optimistic concurrency).
  */
 export async function versionGet(key: string): Promise<number> {
-  const v = redis ? await redis.get<number>(key + ":v") : memGet(key + ":v");
+  const v = redis ? await redis.get<number>(pk(key + ":v")) : memGet(key + ":v");
   return Number(v ?? 0);
 }
 
 /** Several small values in one round trip. */
 export async function kvMget(keys: string[]): Promise<unknown[]> {
-  if (redis) return redis.mget<unknown[]>(...keys);
+  if (redis) return redis.mget<unknown[]>(...keys.map(pk));
   return keys.map((k) => {
     const v = memGet(k);
     return v === null ? null : structuredClone(v);
@@ -87,7 +95,7 @@ export async function kvMget(keys: string[]): Promise<unknown[]> {
 /** Value and version in one round trip. */
 export async function versionedGet<T>(key: string): Promise<{ value: T | null; version: number }> {
   if (redis) {
-    const [value, v] = await redis.mget<[T | null, number | null]>(key, key + ":v");
+    const [value, v] = await redis.mget<[T | null, number | null]>(pk(key), pk(key + ":v"));
     return { value: value ?? null, version: Number(v ?? 0) };
   }
   const value = memGet(key);
@@ -104,7 +112,7 @@ export async function versionedWrite(
   if (redis) {
     const ok = await redis.eval(
       CAS_SCRIPT,
-      [key, key + ":v"],
+      [pk(key), pk(key + ":v")],
       [String(expectedVersion), JSON.stringify(value), String(ttlSeconds), String(next)],
     );
     return ok === 1;

@@ -15,7 +15,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {/* Staging = Vercel preview deployment; it keeps its own accounts and rooms. */}
+        {process.env.VERCEL_ENV === "preview" && <div className="env-badge">STAGING</div>}
+        {children}
+      </body>
     </html>
   );
 }

@@ -27,6 +27,7 @@ interface UserRecord {
   username: string;
   hash: string;
   createdAt: number;
+  displayName?: string; // as the player typed it ("Jack"); the key/username is lowercase ("jack")
   sessionVersion?: number; // bumped by "log out everywhere"; older sessions stop working
 }
 
@@ -46,10 +47,27 @@ export async function userExists(username: string): Promise<boolean> {
   return (await kvGet(userKey(username))) !== null;
 }
 
+/** The name as typed (trimmed), if it's a valid username apart from letter case. */
+export function cleanDisplayName(u: unknown): string | null {
+  if (typeof u !== "string") return null;
+  const n = u.trim();
+  return /^[A-Za-z0-9_]{3,20}$/.test(n) ? n : null;
+}
+
 /** Creates the user if the name is free. Returns false if it already exists. */
-export async function createUser(username: string, password: string): Promise<boolean> {
-  const rec: UserRecord = { username, hash: await bcrypt.hash(password, 10), createdAt: Date.now() };
+export async function createUser(username: string, password: string, displayName = username): Promise<boolean> {
+  const rec: UserRecord = { username, displayName, hash: await bcrypt.hash(password, 10), createdAt: Date.now() };
   return kvSetNew(userKey(username), rec);
+}
+
+/** How the player's name is shown: exactly as they last typed it at login. */
+export async function getDisplayName(username: string): Promise<string> {
+  return (await kvGet<UserRecord>(userKey(username)))?.displayName ?? username;
+}
+
+export async function setDisplayName(username: string, displayName: string) {
+  const rec = await kvGet<UserRecord>(userKey(username));
+  if (rec && rec.displayName !== displayName) await kvSet(userKey(username), { ...rec, displayName });
 }
 
 export async function checkPassword(username: string, password: string): Promise<boolean> {

@@ -35,11 +35,11 @@ export default function Table({ view, game, act, send, error }: Props) {
   const me = game.mySeat;
   const dirOf = (seat: number) => DIRS[(seat - me + 4) % 4];
   const seatAt = (d: Dir) => (me + DIRS.indexOf(d)) % 4;
-  const name = (seat: number | null) => (seat === null ? "" : seat === me ? "You" : displayName(view.seats[seat]));
+  const name = (seat: number | null) => (seat === null ? "" : seat === me ? "You" : displayName(view.names[seat]));
   const teamNames = (t: Team) =>
     [0, 1, 2, 3]
       .filter((s) => teamOf(s) === t)
-      .map((s) => displayName(view.seats[s]))
+      .map((s) => displayName(view.names[s]))
       .join(" & ");
 
   // ---- finished hand: show it, then slide it to the winner. Decided during render so cards never flash.
@@ -213,7 +213,7 @@ export default function Table({ view, game, act, send, error }: Props) {
   }
 
   const initials = (seat: number) => {
-    const u = view.seats[seat] ?? "?";
+    const u = view.names[seat] ?? "?";
     return u.startsWith("bot:") ? "🤖" : u.slice(0, 2).toUpperCase();
   };
   const chips = (seat: number) => (
@@ -229,14 +229,14 @@ export default function Table({ view, game, act, send, error }: Props) {
       <div className={`nameplate me team-${teamOf(seat)} ${isTurn(seat) ? "turn" : ""}`}>
         <span className={`avatar small team-${teamOf(seat)}`}>{initials(seat)}</span>
         <span>
-          {view.me} · Team {teamOf(seat)}
+          {view.meName} · Team {teamOf(seat)}
         </span>
         {chips(seat)}
       </div>
     ) : (
       <div className={`seat-badge team-${teamOf(seat)} ${isTurn(seat) ? "turn" : ""}`}>
         <span className={`avatar team-${teamOf(seat)}`}>{initials(seat)}</span>
-        <span className="pname">{(view.seats[seat] ?? "?").replace(/^bot:/, "")}</span>
+        <span className="pname">{(view.names[seat] ?? "?").replace(/^bot:/, "")}</span>
         <span className="pchips">{chips(seat)}</span>
       </div>
     );

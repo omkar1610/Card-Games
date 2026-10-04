@@ -1,5 +1,6 @@
 import { Action, EngineError, Match, PlayerView, applyAction, newMatch, viewFor } from "./engine/game";
 import { nextBotMove } from "./engine/bot";
+import { getDisplayName } from "./auth";
 import { kvDel, kvGet, kvMget, kvSet, versionGet, versionedGet, versionedWrite } from "./store";
 
 const ROOM_TTL = 7 * 24 * 3600;
@@ -22,6 +23,7 @@ export interface Room {
   updatedAt?: number;
   ended?: boolean;
   seats: (string | null)[]; // usernames by seat; seats 0 & 2 are team A, 1 & 3 team B
+  names?: Record<string, string>; // username → name as typed ("jack" → "Jack")
   match: Match | null;
 }
 
@@ -29,8 +31,10 @@ export interface RoomView {
   code: string;
   host: string;
   seats: (string | null)[];
+  names: (string | null)[]; // what to show for each seat (bots keep their "bot:" prefix)
   version: number;
   me: string;
+  meName: string;
   mySeat: number | null;
   started: boolean;
   ended: boolean;
@@ -74,7 +78,15 @@ export async function createRoom(host: string): Promise<string> {
     for (let i = 0; i < 5; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
     if ((await versionGet(roomKey(code))) !== 0) continue;
     const now = Date.now();
-    const room: Room = { code, host, createdAt: now, updatedAt: now, seats: [host, null, null, null], match: null };
+    const room: Room = {
+      code,
+      host,
+      createdAt: now,
+      updatedAt: now,
+      seats: [host, null, null, null],
+      names: { [host]: await getDisplayName(host) },
+      match: null,
+    };
     if (await versionedWrite(roomKey(code), 0, room, ROOM_TTL)) {
       await kvSet(memberKey(host), code, ROOM_TTL);
       return code;
@@ -96,8 +108,10 @@ export function toView(room: Room, version: number, me: string): RoomView {
     code: room.code,
     host: room.host,
     seats: room.seats,
+    names: room.seats.map((u) => (u ? (isBotName(u) ? u : (room.names?.[u] ?? u)) : null)),
     version,
     me,
+    meName: room.names?.[me] ?? me,
     mySeat,
     started: room.match !== null,
     ended: !!room.ended,
@@ -159,7 +173,7 @@ export type RoomOp =
   | { op: "removeBot"; seat: number }
   | { op: "action"; action: Action };
 
-function mutate(room: Room, me: string, body: RoomOp) {
+function mutate(room: Room, me: string, body: RoomOp, myName: string) {
   if (room.ended) throw new RoomError("This game has ended");
   const seated = room.seats.includes(me);
   switch (body.op) {
@@ -170,6 +184,7 @@ function mutate(room: Room, me: string, body: RoomOp) {
       if (room.seats[seat] && room.seats[seat] !== me) throw new RoomError("Seat taken");
       room.seats = room.seats.map((u) => (u === me ? null : u));
       room.seats[seat] = me;
+      room.names = { ...room.names, [me]: myName };
       return;
     }
     case "leave": {
@@ -232,11 +247,12 @@ export async function updateRoom(
   body: RoomOp,
   sessionOk: Promise<boolean> = Promise.resolve(true),
 ): Promise<RoomView> {
-  if (body.op === "sit") await assertFree(me, code);
+  let myName = me;
+  if (body.op === "sit") [myName] = await Promise.all([getDisplayName(me), assertFree(me, code)]);
   for (let attempt = 0; attempt < 8; attempt++) {
     const { room, version } = await load(code);
     const before = room.seats.slice();
-    mutate(room, me, body);
+    mutate(room, me, body, myName);
     room.updatedAt = Date.now();
     if (!(await sessionOk)) throw new RoomError("Not logged in", 401);
     if (await versionedWrite(roomKey(code), version, room, ROOM_TTL)) {

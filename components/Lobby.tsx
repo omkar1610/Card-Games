@@ -50,7 +50,7 @@ export default function Lobby({ view, send, error }: { view: RoomView; send: (b:
               >
                 <span className="team-label">Team {team}</span>
                 {user ? (
-                  <strong>{displayName(user) + (mine ? " (you)" : "")}</strong>
+                  <strong>{displayName(view.names[seat]) + (mine ? " (you)" : "")}</strong>
                 ) : (
                   <button className="seat-action" onClick={() => send({ op: "sit", seat })}>
                     Sit here

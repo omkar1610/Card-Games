@@ -24,7 +24,7 @@ Next.js app on Vercel. Login → create/join a room → pick seats → play.
 - The bidding team scores +1 game point if it reaches the target, otherwise −1. That's ×2 if doubled and ×4 if redoubled.
 - The game ends when a team reaches **+6** (they win) or **−6** (they lose). **Play again** resets the score with the same seats, and the room keeps a count of games won.
 
-The rules live in `lib/engine/game.ts` (pure TypeScript, no framework code). `npm test` plays 9,000 random rounds and checks the invariants.
+The rules live in `lib/engine/game.ts` and the bot brain in `lib/engine/bot.ts` (pure TypeScript, no framework code). `npm test` plays 9,000 random rounds and checks the invariants, then checks that all-bot games only make legal moves and that bots beat random players.
 
 ## Run locally
 
@@ -36,13 +36,11 @@ npm run dev
 
 Without Redis configured, state lives in memory (fine for local testing).
 
-**Testing solo:** create a room as one user, then fill the other seats with bots:
+**Playing with bots:** in the lobby, tap **+ Bot** on any empty seat. Bots bid on hand strength, choose their strongest suit as trump, and play sensibly. They move when a player's screen checks for updates (Vercel has no always-on server), about once a second, with a longer pause after each hand. If every human closes the game, the bots wait.
 
-```bash
-npx tsx scripts/bots.mts ROOMCODE raj amit neha
-```
+**Sounds:** cards, dealing, your turn, hand collected, bids, trump reveal, marriage, double, round won/lost and game won/lost. They're synthesized in the browser, so there are no audio files. The 🔊 control at the top sets the volume, defaults to 60%, and is saved per device.
 
-Bot accounts are created automatically with password `changeme` (override with `BOT_PASSWORD`).
+`scripts/bots.mts` is an older test helper that plays from separate accounts over HTTP.
 
 ## Deploy to Vercel
 

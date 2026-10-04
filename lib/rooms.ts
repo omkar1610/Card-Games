@@ -1,9 +1,17 @@
 import { Action, EngineError, Match, PlayerView, applyAction, newMatch, viewFor } from "./engine/game";
-import { kvDel, kvGet, kvSet, versionGet, versionedGet, versionedWrite } from "./store";
+import { nextBotMove } from "./engine/bot";
+import { kvDel, kvGet, kvMget, kvSet, versionGet, versionedGet, versionedWrite } from "./store";
 
 const ROOM_TTL = 7 * 24 * 3600;
 const roomKey = (code: string) => `room:${code}`;
 const memberKey = (user: string) => `member:${user}`;
+const botDueKey = (code: string) => `room:${code}:bot`;
+/** Bots wait this long before moving, so people can follow along (longer right after a hand ends). */
+const BOT_DELAY_MS = 900;
+const BOT_DELAY_AFTER_HAND_MS = 1700;
+const BOT_NAMES = ["Asha", "Ravi", "Meera", "Kabir", "Tara", "Dev"];
+export const isBotName = (u: string | null | undefined): u is string => !!u && u.startsWith("bot:");
+
 /** A room stops counting as "yours" once nobody has done anything in it for this long. */
 const ROOM_IDLE_MS = 2 * 3600 * 1000;
 
@@ -98,13 +106,48 @@ export function toView(room: Room, version: number, me: string): RoomView {
 }
 
 /**
- * Returns null when the client already has `knownVersion`. The cheap version check runs first so an
- * unchanged room costs one small read; a changed room costs one more.
+ * Returns null when the client already has `knownVersion`. One small read checks both the version and
+ * whether a bot is due to move; polls are what drive bots, since Vercel has no always-on process.
  */
 export async function getRoomView(code: string, me: string, knownVersion?: number): Promise<RoomView | null> {
-  if (knownVersion !== undefined && (await versionGet(roomKey(code))) === knownVersion) return null;
+  const [v, due] = await kvMget([roomKey(code) + ":v", botDueKey(code)]);
+  if (due !== null && Date.now() >= Number(due)) {
+    const stepped = await runBotStep(code);
+    if (stepped) return toView(stepped.room, stepped.version, me);
+  }
+  if (knownVersion !== undefined && Number(v ?? 0) === knownVersion) return null;
   const { room, version } = await load(code);
   return toView(room, version, me);
+}
+
+function botMoveFor(room: Room) {
+  const r = room.match?.round;
+  if (!r || room.ended || room.match!.winner) return null;
+  return nextBotMove(r, (s) => isBotName(room.seats[s]));
+}
+
+/** Records when the next bot move is due (or clears it). Rooms without bots never touch this key. */
+async function scheduleBots(code: string, room: Room) {
+  if (!room.seats.some(isBotName)) return;
+  if (!botMoveFor(room)) return kvDel(botDueKey(code));
+  const r = room.match!.round!;
+  const handJustEnded = r.trick.length === 0 && r.tricks.length > 0 && r.phase === "playing";
+  await kvSet(botDueKey(code), Date.now() + (handJustEnded ? BOT_DELAY_AFTER_HAND_MS : BOT_DELAY_MS), ROOM_TTL);
+}
+
+/** Makes one bot move. Several polls may try at once; the versioned write lets only one succeed. */
+async function runBotStep(code: string): Promise<{ room: Room; version: number } | null> {
+  const { room, version } = await load(code);
+  const move = botMoveFor(room);
+  if (!move) {
+    await kvDel(botDueKey(code));
+    return null;
+  }
+  room.match = applyAction(room.match!, move.seat, move.action);
+  room.updatedAt = Date.now();
+  if (!(await versionedWrite(roomKey(code), version, room, ROOM_TTL))) return null;
+  await scheduleBots(code, room);
+  return { room, version: version + 1 };
 }
 
 export type RoomOp =
@@ -112,6 +155,8 @@ export type RoomOp =
   | { op: "leave" }
   | { op: "start" }
   | { op: "end" }
+  | { op: "addBot"; seat: number }
+  | { op: "removeBot"; seat: number }
   | { op: "action"; action: Action };
 
 function mutate(room: Room, me: string, body: RoomOp) {
@@ -130,6 +175,22 @@ function mutate(room: Room, me: string, body: RoomOp) {
     case "leave": {
       if (room.match) throw new RoomError("Game already started — use End game instead");
       room.seats = room.seats.map((u) => (u === me ? null : u));
+      return;
+    }
+    case "addBot":
+    case "removeBot": {
+      if (room.match) throw new RoomError("Game already started");
+      if (!seated) throw new RoomError("Sit down first", 403);
+      const seat = body.seat;
+      if (!Number.isInteger(seat) || seat < 0 || seat > 3) throw new RoomError("Bad seat");
+      if (body.op === "addBot") {
+        if (room.seats[seat]) throw new RoomError("Seat taken");
+        const name = BOT_NAMES.find((n) => !room.seats.includes(`bot:${n}`))!;
+        room.seats[seat] = `bot:${name}`;
+      } else {
+        if (!isBotName(room.seats[seat])) throw new RoomError("That seat isn't a bot");
+        room.seats[seat] = null;
+      }
       return;
     }
     case "start": {
@@ -179,7 +240,7 @@ export async function updateRoom(
     room.updatedAt = Date.now();
     if (!(await sessionOk)) throw new RoomError("Not logged in", 401);
     if (await versionedWrite(roomKey(code), version, room, ROOM_TTL)) {
-      await syncMembership(code, before, room);
+      await Promise.all([syncMembership(code, before, room), scheduleBots(code, room)]);
       return toView(room, version + 1, me);
     }
   }
@@ -189,8 +250,8 @@ export async function updateRoom(
 async function syncMembership(code: string, before: (string | null)[], room: Room) {
   const now = room.ended ? [] : room.seats;
   const ops: Promise<unknown>[] = [];
-  for (const u of before) if (u && !now.includes(u)) ops.push(kvDel(memberKey(u)));
-  for (const u of now) if (u && !before.includes(u)) ops.push(kvSet(memberKey(u), code, ROOM_TTL));
+  for (const u of before) if (u && !isBotName(u) && !now.includes(u)) ops.push(kvDel(memberKey(u)));
+  for (const u of now) if (u && !isBotName(u) && !before.includes(u)) ops.push(kvSet(memberKey(u), code, ROOM_TTL));
   await Promise.all(ops);
 }
 

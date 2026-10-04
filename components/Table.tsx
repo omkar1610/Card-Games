@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RoomView } from "@/lib/rooms";
 import type { Action, PlayerView, Team } from "@/lib/engine/game";
 import { SUITS, SUIT_SYMBOL, SUIT_NAME, Suit } from "@/lib/engine/cards";
 import { CardBack, CardFace } from "./Card";
+import VolumeControl from "./VolumeControl";
+import { displayName } from "@/lib/names";
+import { sfx } from "@/lib/sound";
 
 type Dir = "s" | "e" | "n" | "w";
 const DIRS: Dir[] = ["s", "e", "n", "w"]; // relative to me, anticlockwise
@@ -32,11 +35,11 @@ export default function Table({ view, game, act, send, error }: Props) {
   const me = game.mySeat;
   const dirOf = (seat: number) => DIRS[(seat - me + 4) % 4];
   const seatAt = (d: Dir) => (me + DIRS.indexOf(d)) % 4;
-  const name = (seat: number | null) => (seat === null ? "" : seat === me ? "You" : (view.seats[seat] ?? "?"));
+  const name = (seat: number | null) => (seat === null ? "" : seat === me ? "You" : displayName(view.seats[seat]));
   const teamNames = (t: Team) =>
     [0, 1, 2, 3]
       .filter((s) => teamOf(s) === t)
-      .map((s) => view.seats[s])
+      .map((s) => displayName(view.seats[s]))
       .join(" & ");
 
   // ---- finished hand: show it, then slide it to the winner. Decided during render so cards never flash.
@@ -85,6 +88,7 @@ export default function Table({ view, game, act, send, error }: Props) {
   }
   useEffect(() => {
     if (!deal) return;
+    for (let i = 0; i < 16; i++) sfx.deal((i * DEAL_STEP_MS) / 1000);
     const t = setTimeout(() => setDeal(null), 16 * DEAL_STEP_MS + 700);
     return () => clearTimeout(t);
   }, [deal]);
@@ -93,6 +97,7 @@ export default function Table({ view, game, act, send, error }: Props) {
   // My card goes on the table immediately; the server's reply replaces this a moment later.
   const [pending, setPending] = useState<string | null>(null);
   async function playCard(card: string) {
+    sfx.card();
     setPending(card);
     await act({ type: "play", card });
     setPending(null);
@@ -159,6 +164,49 @@ export default function Table({ view, game, act, send, error }: Props) {
   }
   const st = status();
 
+  // ---- sound effects, driven by what changed since the last update (nothing plays on first load)
+  const prev = useRef<{ cards: number; tricks: number; log: string[]; myTurn: boolean; winner: string | null } | null>(null);
+  const cardsOnTable = r.tricks.length * 4 + r.trick.length;
+  const logKeys = r.log.map((l) => `${l.seat}|${l.text}`);
+  const iMustAct = myTurn || iDecide;
+  useEffect(() => {
+    const p = prev.current;
+    prev.current = { cards: cardsOnTable, tricks: tricksLen, log: logKeys, myTurn: iMustAct, winner: game.winner };
+    if (!p) return;
+    let at = 0;
+    const later = (fn: () => void, ms: number) => setTimeout(fn, ms);
+    // Cards played by others (my own card already clicked when I tapped it).
+    if (cardsOnTable > p.cards && cardsOnTable - p.cards <= 4) {
+      const played = [...r.tricks.flatMap((t) => t.cards), ...r.trick].slice(p.cards);
+      played.filter((c) => c.seat !== me).forEach((_, i) => later(sfx.card, i * 140));
+      at = played.length * 140;
+    }
+    if (tricksLen > p.tricks) later(sfx.collect, TRICK_SHOW_MS);
+    // New log entries: bids, passes, reveals, marriages, doubles, round results.
+    let same = 0;
+    while (same < p.log.length && same < logKeys.length && p.log[same] === logKeys[same]) same++;
+    const fresh = r.log.slice(same);
+    for (const l of fresh) {
+      const t = l.text;
+      if (t.startsWith("bid ")) later(sfx.bid, at);
+      else if (t === "passed" || t === "no double" || t === "no redouble") later(sfx.pass, at);
+      else if (t.includes("trump is")) later(sfx.reveal, at);
+      else if (t.includes("marriage")) later(sfx.marriage, at);
+      else if (t === "doubled!" || t === "redoubled!") later(sfx.double, at);
+      else if ((t.startsWith("made the bid") || t.startsWith("went down")) && !game.winner) {
+        const bidderMine = l.seat !== null && teamOf(l.seat) === teamOf(me);
+        const good = t.startsWith("made") === bidderMine;
+        later(good ? sfx.roundWon : sfx.roundLost, TRICK_SHOW_MS + 300);
+      }
+    }
+    if (game.winner && !p.winner) later(game.winner === teamOf(me) ? sfx.gameWon : sfx.gameLost, TRICK_SHOW_MS + 300);
+    if (iMustAct && !p.myTurn) later(sfx.turn, Math.max(at, tricksLen > p.tricks ? TRICK_SHOW_MS + TRICK_COLLECT_MS : 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view.version]);
+  useEffect(() => {
+    if (error) sfx.error();
+  }, [error]);
+
   async function endGame() {
     if (!confirm("End this game for everyone? The room will close.")) return;
     await send({ op: "end" });
@@ -191,6 +239,7 @@ export default function Table({ view, game, act, send, error }: Props) {
           <span>Room {view.code}</span>
           <span className="ta">A: {teamNames("A")}</span>
           <span className="tb">B: {teamNames("B")}</span>
+          <VolumeControl />
           <button className="end-btn" onClick={endGame}>
             End game
           </button>
@@ -226,11 +275,25 @@ export default function Table({ view, game, act, send, error }: Props) {
           <div className="stat">
             <span className="stat-label">Trump</span>
             <span className="stat-value">
-              <span className={`trump-suit ${isRed(r.trumpSuit) ? "red" : ""}`}>
-                {r.trumpSuit ? SUIT_SYMBOL[r.trumpSuit] : "?"}
+              {/* Face down until revealed, then flips over to show the suit. */}
+              <span className={`flip ${r.trumpRevealed ? "up" : ""}`} aria-label={r.trumpRevealed ? `Trump ${r.trumpSuit}` : "Trump hidden"}>
+                <span className="flip-inner">
+                  <span className="flip-face flip-back" />
+                  <span className={`flip-face flip-front ${isRed(r.trumpSuit) ? "red" : ""}`}>
+                    {r.trumpRevealed && r.trumpSuit ? SUIT_SYMBOL[r.trumpSuit] : ""}
+                  </span>
+                </span>
               </span>
               <span className="stat-sub">
-                {r.trumpRevealed ? name(r.revealedBy) : r.trumpSuit ? "secret" : ""}
+                {r.trumpRevealed ? (
+                  name(r.revealedBy)
+                ) : r.trumpSuit ? (
+                  <>
+                    <span className={`trump-peek ${isRed(r.trumpSuit) ? "red" : ""}`}>{SUIT_SYMBOL[r.trumpSuit]}</span> only you
+                  </>
+                ) : (
+                  ""
+                )}
               </span>
             </span>
           </div>

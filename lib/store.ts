@@ -75,6 +75,15 @@ export async function versionGet(key: string): Promise<number> {
   return Number(v ?? 0);
 }
 
+/** Several small values in one round trip. */
+export async function kvMget(keys: string[]): Promise<unknown[]> {
+  if (redis) return redis.mget<unknown[]>(...keys);
+  return keys.map((k) => {
+    const v = memGet(k);
+    return v === null ? null : structuredClone(v);
+  });
+}
+
 /** Value and version in one round trip. */
 export async function versionedGet<T>(key: string): Promise<{ value: T | null; version: number }> {
   if (redis) {

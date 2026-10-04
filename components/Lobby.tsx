@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { RoomView } from "@/lib/rooms";
+import { displayName } from "@/lib/names";
 
 // Seats go anticlockwise: 0 South, 1 East, 2 North, 3 West. Partners sit opposite.
 const POS = ["seat-s", "seat-e", "seat-n", "seat-w"];
@@ -33,24 +34,40 @@ export default function Lobby({ view, send, error }: { view: RoomView; send: (b:
           Room code
         </p>
         <div className="room-code">{view.code}</div>
-        <p className="hint">Tap a seat to sit there. Partners sit opposite each other.</p>
+        <p className="hint">Tap a seat to sit there, or fill it with a bot. Partners sit opposite each other.</p>
         {error && <p className="error">{error}</p>}
 
         <div className="seat-grid">
           {view.seats.map((user, seat) => {
             const team = seat % 2 === 0 ? "A" : "B";
             const mine = user === view.me;
+            const bot = !!user && user.startsWith("bot:");
+            const canManage = view.mySeat !== null;
             return (
-              <button
+              <div
                 key={seat}
                 className={`seat-slot ${POS[seat]} team-${team} ${user ? "filled" : "empty"} ${mine ? "me" : ""}`}
-                onClick={() => !user && send({ op: "sit", seat })}
-                disabled={!!user && !mine}
               >
                 <span className="team-label">Team {team}</span>
-                <strong>{user ? user + (mine ? " (you)" : "") : "Empty seat"}</strong>
+                {user ? (
+                  <strong>{displayName(user) + (mine ? " (you)" : "")}</strong>
+                ) : (
+                  <button className="seat-action" onClick={() => send({ op: "sit", seat })}>
+                    Sit here
+                  </button>
+                )}
+                {!user && canManage && (
+                  <button className="seat-action bot" onClick={() => send({ op: "addBot", seat })}>
+                    + Bot
+                  </button>
+                )}
+                {bot && canManage && (
+                  <button className="seat-action bot" onClick={() => send({ op: "removeBot", seat })}>
+                    Remove
+                  </button>
+                )}
                 {user === view.host && <span className="team-label">host</span>}
-              </button>
+              </div>
             );
           })}
           <div className="seat-table">table</div>

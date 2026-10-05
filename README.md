@@ -1,4 +1,4 @@
-# Card games for 4 friends: 29 and Contract Bridge
+# Games for friends: 29, Bridge, Ludo, Snakes & Ladders, Bluff, Uno, Tic-tac-toe, Dots & Boxes
 
 Next.js app on Vercel. Login → create a room (choose the game) or join one by code → pick seats → play.
 Settings → Rules shows the rules of the game you're in.
@@ -13,7 +13,20 @@ Settings → Rules shows the rules of the game you're in.
 
 ## Games
 
-Each game plugs into `lib/games` (`GameDef`: new match, apply action, per-player view, bot move, bot pacing) and has its own table screen. Rooms, accounts, lobby, bots, sounds, settings and themes are shared. `lib/games/catalog.ts` lists the games; rooms made before this existed are treated as 29.
+Each game plugs into `lib/games`. A `GameDef` provides: new match for N players, apply action, per-player view, bot move, and bot pacing. Each game also has its own screen in `components`. `lib/games/catalog.ts` lists every game with its player count (min–max), whether it has fixed teams, and seat names. Rooms, accounts, lobby, bots, sounds, settings and themes are shared, and newer games use the shared `GameFrame` (top strip, players, status, win screen). Rooms made before multiple games existed are treated as 29.
+
+| Game | Players | Notes |
+|---|---|---|
+| 29 | 4 (2 teams) | See below |
+| Contract Bridge | 4 (2 partnerships) | Chicago scoring |
+| Ludo | 2–4 | 6 to leave base; extra roll on 6, capture or home; three 6s end the turn; safe stars and starts; exact roll home |
+| Snakes & Ladders | 2–4 | Classic board; exact roll for 100; 6 rolls again |
+| Bluff | 3–6 | Claim a rank, play 1–4 cards face down; anyone can call bluff; all pass → pile cleared |
+| Uno | 2–6 | 108-card deck; draw 1 if you can't play; automatic UNO |
+| Tic-tac-toe | 2 | Starter alternates; running score |
+| Dots & Boxes | 2–4 | 4×4 boxes for 2 players, 5×5 for 3–4; closing a box = another turn |
+
+In non-team games, players can start once the minimum is seated; empty seats are dropped at the start. `scripts/games-test.ts` plays every game with bots at every player count and checks key rules.
 
 ### Contract Bridge (Chicago)
 

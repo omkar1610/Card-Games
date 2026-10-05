@@ -193,4 +193,15 @@ export const sfx = {
   gameWon: () => notes([523, 659, 784, 1047, 784, 1047], 0.11, { type: "triangle", gain: 0.25 }),
   gameLost: () => notes([392, 370, 330, 262], 0.16, { type: "triangle", gain: 0.2 }),
   error: () => tone({ freq: 130, dur: 0.18, type: "square", gain: 0.1 }),
+  /** Dice rattling, then landing. */
+  dice: () => {
+    for (let i = 0; i < 5; i++) noise({ dur: 0.04, freq: 1800 + i * 300, q: 2, gain: 0.22, at: i * 0.06 });
+    tone({ freq: 220, to: 140, dur: 0.08, gain: 0.25, at: 0.32 });
+  },
+  /** A pen stroke / tap on the board. */
+  tap: () => tone({ freq: 880, to: 660, dur: 0.06, type: "triangle", gain: 0.15 }),
+  /** Something good for the mover (box closed, ladder climbed, capture). */
+  good: () => notes([659, 988], 0.07, { type: "triangle", gain: 0.2 }),
+  /** Something bad for the mover (snake, captured, picked up the pile). */
+  bad: () => tone({ freq: 392, to: 196, dur: 0.35, type: "triangle", gain: 0.2 }),
 };

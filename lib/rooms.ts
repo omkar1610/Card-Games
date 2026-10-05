@@ -1,6 +1,6 @@
 import { EngineError } from "./engine/game";
 import { getGame } from "./games";
-import { DEFAULT_GAME, GameId } from "./games/catalog";
+import { DEFAULT_GAME, GameId, gameInfo } from "./games/catalog";
 import { getDisplayName } from "./auth";
 import { kvDel, kvGet, kvMget, kvSet, versionGet, versionedGet, versionedWrite } from "./store";
 
@@ -84,7 +84,7 @@ export async function createRoom(host: string, game: GameId = DEFAULT_GAME): Pro
       host,
       createdAt: now,
       updatedAt: now,
-      seats: [host, null, null, null],
+      seats: [host, ...Array<null>(gameInfo(game).maxPlayers - 1).fill(null)],
       names: { [host]: await getDisplayName(host) },
       game,
       match: null,
@@ -181,7 +181,7 @@ function mutate(room: Room, me: string, body: RoomOp, myName: string) {
     case "sit": {
       if (room.match) throw new RoomError("Game already started");
       const seat = body.seat;
-      if (!Number.isInteger(seat) || seat < 0 || seat > 3) throw new RoomError("Bad seat");
+      if (!Number.isInteger(seat) || seat < 0 || seat >= room.seats.length) throw new RoomError("Bad seat");
       if (room.seats[seat] && room.seats[seat] !== me) throw new RoomError("Seat taken");
       room.seats = room.seats.map((u) => (u === me ? null : u));
       room.seats[seat] = me;
@@ -198,7 +198,7 @@ function mutate(room: Room, me: string, body: RoomOp, myName: string) {
       if (room.match) throw new RoomError("Game already started");
       if (!seated) throw new RoomError("Sit down first", 403);
       const seat = body.seat;
-      if (!Number.isInteger(seat) || seat < 0 || seat > 3) throw new RoomError("Bad seat");
+      if (!Number.isInteger(seat) || seat < 0 || seat >= room.seats.length) throw new RoomError("Bad seat");
       if (body.op === "addBot") {
         if (room.seats[seat]) throw new RoomError("Seat taken");
         const name = BOT_NAMES.find((n) => !room.seats.includes(`bot:${n}`))!;
@@ -221,8 +221,13 @@ function mutate(room: Room, me: string, body: RoomOp, myName: string) {
     case "start": {
       if (!seated) throw new RoomError("Sit down first", 403);
       if (room.match) throw new RoomError("Already started");
-      if (room.seats.some((s) => !s)) throw new RoomError("Need 4 players");
-      room.match = getGame(room.game).newMatch();
+      const info = gameInfo(room.game);
+      const filled = room.seats.filter(Boolean);
+      if (info.teams && filled.length !== room.seats.length) throw new RoomError(`Need ${room.seats.length} players`);
+      if (filled.length < info.minPlayers) throw new RoomError(`Need at least ${info.minPlayers} players`);
+      // Non-team games: close the gaps so players are seats 0..n-1 in the order they sat.
+      if (!info.teams) room.seats = filled;
+      room.match = getGame(room.game).newMatch(room.seats.length);
       return;
     }
     case "end": {

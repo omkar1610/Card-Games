@@ -105,4 +105,110 @@ export const RULES: Record<GameId, { title: string; sections: RuleSection[] }> =
       },
     ],
   },
+  ludo: {
+    title: "Ludo — rules",
+    sections: [
+      { title: "Goal", points: ["2–4 players, 4 tokens each. Be first to bring all 4 tokens home (the centre)."] },
+      {
+        title: "Turns",
+        points: [
+          "Tap Roll, then tap a highlighted token to move it by the number rolled.",
+          "You need a 6 to bring a token out of your base onto your start square.",
+          "Rolling a 6, capturing a token, or bringing a token home gives you another roll.",
+          "Three 6s in a row ends your turn.",
+          "If no token can move, the turn passes.",
+        ],
+      },
+      {
+        title: "Capturing and safety",
+        points: [
+          "Land on an opponent's token to send it back to their base.",
+          "Star squares and the coloured start squares are safe: no captures there.",
+          "After going round the board, tokens turn into their own coloured home column. You need the exact roll to reach home.",
+        ],
+      },
+    ],
+  },
+  snakes: {
+    title: "Snakes & Ladders — rules",
+    sections: [
+      { title: "Goal", points: ["2–4 players. First to land exactly on 100 wins."] },
+      {
+        title: "Turns",
+        points: [
+          "Tap Roll and your token moves forward by the number rolled.",
+          "Land at the bottom of a ladder: climb up. Land on a snake's head: slide down.",
+          "Rolling a 6 gives another roll.",
+          "If the roll would take you past 100, you stay where you are.",
+        ],
+      },
+    ],
+  },
+  bluff: {
+    title: "Bluff — rules",
+    sections: [
+      { title: "Goal", points: ["3–6 players. All 52 cards are dealt. First to get rid of all their cards wins."] },
+      {
+        title: "Playing",
+        points: [
+          "The player starting a round picks a rank (e.g. 7) and plays 1–4 cards face down, claiming they're all that rank.",
+          "Going round, each player plays 1–4 cards claiming the same rank, or passes. You may lie!",
+          "If everyone else passes, the pile is cleared and the last player to play starts a new round.",
+        ],
+      },
+      {
+        title: "Calling bluff",
+        points: [
+          "After any play, anyone else can tap Bluff! before the next player acts.",
+          "The cards are shown. If any card wasn't the claimed rank, the player who played them picks up the whole pile. If they were all true, the caller picks up the pile.",
+          "Whoever was right starts the next round.",
+          "If you play your last cards and nobody calls bluff in time, you win.",
+        ],
+      },
+    ],
+  },
+  uno: {
+    title: "Uno — rules",
+    sections: [
+      { title: "Goal", points: ["2–6 players, 7 cards each. First to play all their cards wins."] },
+      {
+        title: "Playing",
+        points: [
+          "Play a card that matches the top card's colour or its number/symbol, or play a Wild.",
+          "Can't (or don't want to) play? Draw 1 card. If it fits you may play it, otherwise pass.",
+          "Skip: the next player misses a turn. Reverse: play changes direction (with 2 players it works like Skip).",
+          "+2: the next player draws 2 and misses a turn. Wild: choose the colour. Wild +4: choose the colour; the next player draws 4 and misses a turn.",
+          "\"UNO!\" is called for you automatically when you're down to one card.",
+        ],
+      },
+    ],
+  },
+  tictactoe: {
+    title: "Tic-tac-toe — rules",
+    sections: [
+      {
+        title: "Playing",
+        points: [
+          "2 players: X and O take turns marking an empty square.",
+          "Three in a row (across, down or diagonal) wins. A full board with no line is a draw.",
+          "The starting player alternates each game; the score keeps running.",
+        ],
+      },
+    ],
+  },
+  dots: {
+    title: "Dots & Boxes — rules",
+    sections: [
+      {
+        title: "Playing",
+        points: [
+          "2–4 players take turns drawing one line between two neighbouring dots.",
+          "Close the fourth side of a box and it's yours, and you draw again.",
+          "When every box is closed, the player with the most boxes wins.",
+          "Grid: 4×4 boxes for 2 players, 5×5 for 3–4 players.",
+          "Tip: avoid drawing the third side of a box, or the next player gets it.",
+        ],
+      },
+    ],
+  },
 };

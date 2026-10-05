@@ -5,8 +5,27 @@ import Link from "next/link";
 import { post } from "@/lib/api";
 import type { RoomView } from "@/lib/rooms";
 import Lobby from "./Lobby";
+import { gameInfo } from "@/lib/games/catalog";
 import Table from "./Table";
 import BridgeTable from "./BridgeTable";
+import LudoTable from "./games/LudoTable";
+import SnakesTable from "./games/SnakesTable";
+import BluffTable from "./games/BluffTable";
+import UnoTable from "./games/UnoTable";
+import TicTacToeTable from "./games/TicTacToeTable";
+import DotsTable from "./games/DotsTable";
+
+// Each game's screen. All take the same props.
+const SCREENS: Record<string, React.ComponentType<any>> = {
+  "29": Table,
+  bridge: BridgeTable,
+  ludo: LudoTable,
+  snakes: SnakesTable,
+  bluff: BluffTable,
+  uno: UnoTable,
+  tictactoe: TicTacToeTable,
+  dots: DotsTable,
+};
 
 const POLL_MS = 600; // how quickly other players' moves show up
 
@@ -117,7 +136,8 @@ export default function RoomClient({ code }: { code: string }) {
                   style={{ marginBottom: 8 }}
                   onClick={() => send({ op: "takeSeat", seat })}
                 >
-                  Take {view.names[seat]?.replace(/^bot:/, "")}&apos;s seat · Team {seat % 2 === 0 ? "A" : "B"}
+                  Take {view.names[seat]?.replace(/^bot:/, "")}&apos;s seat
+                  {gameInfo(view.gameId).teams ? ` · Team ${seat % 2 === 0 ? "A" : "B"}` : ""}
                 </button>
               ))}
             </>
@@ -130,6 +150,6 @@ export default function RoomClient({ code }: { code: string }) {
     );
   }
 
-  if (view.gameId === "bridge") return <BridgeTable view={view} game={view.game} act={act} send={send} error={error} />;
-  return <Table view={view} game={view.game} act={act} send={send} error={error} />;
+  const Screen = SCREENS[view.gameId] ?? Table;
+  return <Screen view={view} game={view.game} act={act} send={send} error={error} />;
 }

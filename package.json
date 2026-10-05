@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsx scripts/simulate.ts && tsx scripts/bots-test.ts && tsx scripts/bridge-test.ts"
+    "test": "tsx scripts/simulate.ts && tsx scripts/bots-test.ts && tsx scripts/bridge-test.ts && tsx scripts/games-test.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.39.0",

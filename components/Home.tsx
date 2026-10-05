@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { post } from "@/lib/api";
-import { DEFAULT_GAME, GAMES, GameId } from "@/lib/games/catalog";
+import { DEFAULT_GAME, GAMES, GameId, playersText } from "@/lib/games/catalog";
 
 interface Props {
   username: string;
@@ -99,7 +99,7 @@ export default function Home({ username, defaultPassword, currentRoom }: Props) 
                   <span className={`game-icon ${g.icon.match(/[♥♦]/) ? "red" : ""}`}>{g.icon}</span>
                   <span className="game-name">{g.name}</span>
                   <span className="game-blurb">{g.blurb}</span>
-                  <span className="game-players">4 players</span>
+                  <span className="game-players">{playersText(g)}</span>
                 </button>
               ))}
             </div>

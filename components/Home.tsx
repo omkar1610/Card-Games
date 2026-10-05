@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { post } from "@/lib/api";
+import { DEFAULT_GAME, GAMES, GameId } from "@/lib/games/catalog";
 
 interface Props {
   username: string;
@@ -13,6 +14,7 @@ interface Props {
 export default function Home({ username, defaultPassword, currentRoom }: Props) {
   const router = useRouter();
   const [code, setCode] = useState("");
+  const [game, setGame] = useState<GameId>(DEFAULT_GAME);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(defaultPassword);
@@ -24,7 +26,7 @@ export default function Home({ username, defaultPassword, currentRoom }: Props) 
     setBusy(true);
     setError("");
     try {
-      const { code } = await post<{ code: string }>("/api/rooms");
+      const { code } = await post<{ code: string }>("/api/rooms", { game });
       router.push(`/room/${code}`);
     } catch (err) {
       setError((err as Error).message);
@@ -85,8 +87,21 @@ export default function Home({ username, defaultPassword, currentRoom }: Props) 
         <>
           <div className="home-section" style={{ borderTop: "none", marginTop: 0, paddingTop: 0 }}>
             <h3>Create room</h3>
+            <label className="field" style={{ marginBottom: 10 }}>
+              Game
+              <select className="game-select" value={game} onChange={(e) => setGame(e.target.value as GameId)}>
+                {GAMES.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="hint" style={{ margin: "0 0 10px", textAlign: "left" }}>
+              {GAMES.find((g) => g.id === game)?.blurb}
+            </p>
             <button className="btn primary block" onClick={createRoom} disabled={busy}>
-              Create a new room
+              Create a {GAMES.find((g) => g.id === game)?.name} room
             </button>
           </div>
 

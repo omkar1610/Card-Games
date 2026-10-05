@@ -260,7 +260,7 @@ export default function Table({ view, game, act, send, error }: Props) {
           <span>Room {view.code}</span>
           <span className="ta">A: {teamNames("A")}</span>
           <span className="tb">B: {teamNames("B")}</span>
-          <Settings onEndGame={endGame} />
+          <Settings onEndGame={endGame} gameId="29" />
         </div>
 
         <div className="stats-row">

@@ -1,5 +1,6 @@
-import { Action, EngineError, Match, PlayerView, applyAction, newMatch, viewFor } from "./engine/game";
-import { nextBotMove } from "./engine/bot";
+import { EngineError } from "./engine/game";
+import { getGame } from "./games";
+import { DEFAULT_GAME, GameId } from "./games/catalog";
 import { getDisplayName } from "./auth";
 import { kvDel, kvGet, kvMget, kvSet, versionGet, versionedGet, versionedWrite } from "./store";
 
@@ -8,8 +9,6 @@ const roomKey = (code: string) => `room:${code}`;
 const memberKey = (user: string) => `member:${user}`;
 const botDueKey = (code: string) => `room:${code}:bot`;
 /** Bots wait this long before moving, so people can follow along (longer right after a hand ends). */
-const BOT_DELAY_MS = 900;
-const BOT_DELAY_AFTER_HAND_MS = 1700;
 const BOT_NAMES = ["Asha", "Ravi", "Meera", "Kabir", "Tara", "Dev"];
 export const isBotName = (u: string | null | undefined): u is string => !!u && u.startsWith("bot:");
 
@@ -24,7 +23,8 @@ export interface Room {
   ended?: boolean;
   seats: (string | null)[]; // usernames by seat; seats 0 & 2 are team A, 1 & 3 team B
   names?: Record<string, string>; // username → name as typed ("jack" → "Jack")
-  match: Match | null;
+  game?: GameId; // missing on rooms made before multiple games existed → 29
+  match: any | null; // the game's own match state (see lib/games)
 }
 
 export interface RoomView {
@@ -38,7 +38,8 @@ export interface RoomView {
   mySeat: number | null;
   started: boolean;
   ended: boolean;
-  game: PlayerView | null;
+  gameId: GameId;
+  game: any | null; // that game's per-player view
 }
 
 export class RoomError extends Error {
@@ -71,7 +72,7 @@ async function assertFree(user: string, exceptCode?: string) {
   if (other && other !== exceptCode) throw new RoomError(`You're already in room ${other}. Leave it first.`, 409);
 }
 
-export async function createRoom(host: string): Promise<string> {
+export async function createRoom(host: string, game: GameId = DEFAULT_GAME): Promise<string> {
   await assertFree(host);
   for (let attempt = 0; attempt < 10; attempt++) {
     let code = "";
@@ -85,6 +86,7 @@ export async function createRoom(host: string): Promise<string> {
       updatedAt: now,
       seats: [host, null, null, null],
       names: { [host]: await getDisplayName(host) },
+      game,
       match: null,
     };
     if (await versionedWrite(roomKey(code), 0, room, ROOM_TTL)) {
@@ -115,7 +117,8 @@ export function toView(room: Room, version: number, me: string): RoomView {
     mySeat,
     started: room.match !== null,
     ended: !!room.ended,
-    game: room.match && mySeat !== null ? viewFor(room.match, mySeat) : null,
+    gameId: room.game ?? DEFAULT_GAME,
+    game: room.match && mySeat !== null ? getGame(room.game).viewFor(room.match, mySeat) : null,
   };
 }
 
@@ -135,18 +138,15 @@ export async function getRoomView(code: string, me: string, knownVersion?: numbe
 }
 
 function botMoveFor(room: Room) {
-  const r = room.match?.round;
-  if (!r || room.ended || room.match!.winner) return null;
-  return nextBotMove(r, (s) => isBotName(room.seats[s]));
+  if (!room.match || room.ended) return null;
+  return getGame(room.game).nextBotMove(room.match, (s) => isBotName(room.seats[s]));
 }
 
 /** Records when the next bot move is due (or clears it). Rooms without bots never touch this key. */
 async function scheduleBots(code: string, room: Room) {
   if (!room.seats.some(isBotName)) return;
   if (!botMoveFor(room)) return kvDel(botDueKey(code));
-  const r = room.match!.round!;
-  const handJustEnded = r.trick.length === 0 && r.tricks.length > 0 && r.phase === "playing";
-  await kvSet(botDueKey(code), Date.now() + (handJustEnded ? BOT_DELAY_AFTER_HAND_MS : BOT_DELAY_MS), ROOM_TTL);
+  await kvSet(botDueKey(code), Date.now() + getGame(room.game).botDelayMs(room.match), ROOM_TTL);
 }
 
 /** Makes one bot move. Several polls may try at once; the versioned write lets only one succeed. */
@@ -157,7 +157,7 @@ async function runBotStep(code: string): Promise<{ room: Room; version: number }
     await kvDel(botDueKey(code));
     return null;
   }
-  room.match = applyAction(room.match!, move.seat, move.action);
+  room.match = getGame(room.game).applyAction(room.match, move.seat, move.action);
   room.updatedAt = Date.now();
   if (!(await versionedWrite(roomKey(code), version, room, ROOM_TTL))) return null;
   await scheduleBots(code, room);
@@ -172,7 +172,7 @@ export type RoomOp =
   | { op: "addBot"; seat: number }
   | { op: "removeBot"; seat: number }
   | { op: "takeSeat"; seat: number } // join a game in progress by replacing a bot
-  | { op: "action"; action: Action };
+  | { op: "action"; action: unknown };
 
 function mutate(room: Room, me: string, body: RoomOp, myName: string) {
   if (room.ended) throw new RoomError("This game has ended");
@@ -222,7 +222,7 @@ function mutate(room: Room, me: string, body: RoomOp, myName: string) {
       if (!seated) throw new RoomError("Sit down first", 403);
       if (room.match) throw new RoomError("Already started");
       if (room.seats.some((s) => !s)) throw new RoomError("Need 4 players");
-      room.match = newMatch();
+      room.match = getGame(room.game).newMatch();
       return;
     }
     case "end": {
@@ -235,7 +235,7 @@ function mutate(room: Room, me: string, body: RoomOp, myName: string) {
       if (seat < 0) throw new RoomError("You are not seated", 403);
       if (!room.match) throw new RoomError("Game not started");
       try {
-        room.match = applyAction(room.match, seat, body.action);
+        room.match = getGame(room.game).applyAction(room.match, seat, body.action);
       } catch (e) {
         if (e instanceof EngineError) throw new RoomError(e.message);
         throw e;

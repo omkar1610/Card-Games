@@ -4,9 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import type { RoomView } from "@/lib/rooms";
 import { displayName } from "@/lib/names";
+import { gameName } from "@/lib/games/catalog";
 
-// Seats go anticlockwise: 0 South, 1 East, 2 North, 3 West. Partners sit opposite.
-const POS = ["seat-s", "seat-e", "seat-n", "seat-w"];
+// 29 goes anticlockwise (seat 1 on the right); Bridge goes clockwise (seat 1 on the left).
+// Partners always sit opposite.
+const POS: Record<string, string[]> = {
+  "29": ["seat-s", "seat-e", "seat-n", "seat-w"],
+  bridge: ["seat-s", "seat-w", "seat-n", "seat-e"],
+};
 
 export default function Lobby({ view, send, error }: { view: RoomView; send: (b: unknown) => Promise<void>; error: string }) {
   const [copied, setCopied] = useState(false);
@@ -34,6 +39,7 @@ export default function Lobby({ view, send, error }: { view: RoomView; send: (b:
           Room code
         </p>
         <div className="room-code">{view.code}</div>
+        <p className="lobby-game">{gameName(view.gameId)}</p>
         <p className="hint">Tap a seat to sit there, or fill it with a bot. Partners sit opposite each other.</p>
         {error && <p className="error">{error}</p>}
 
@@ -46,7 +52,7 @@ export default function Lobby({ view, send, error }: { view: RoomView; send: (b:
             return (
               <div
                 key={seat}
-                className={`seat-slot ${POS[seat]} team-${team} ${user ? "filled" : "empty"} ${mine ? "me" : ""}`}
+                className={`seat-slot ${(POS[view.gameId] ?? POS["29"])[seat]} team-${team} ${user ? "filled" : "empty"} ${mine ? "me" : ""}`}
               >
                 <span className="team-label">Team {team}</span>
                 {user ? (

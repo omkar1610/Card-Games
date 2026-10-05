@@ -6,7 +6,7 @@ import { post } from "@/lib/api";
 import type { RoomView } from "@/lib/rooms";
 import Lobby from "./Lobby";
 import Table from "./Table";
-import type { Action } from "@/lib/engine/game";
+import BridgeTable from "./BridgeTable";
 
 const POLL_MS = 600; // how quickly other players' moves show up
 
@@ -58,7 +58,7 @@ export default function RoomClient({ code }: { code: string }) {
     [code, accept],
   );
 
-  const act = useCallback((action: Action) => send({ op: "action", action }), [send]);
+  const act = useCallback((action: unknown) => send({ op: "action", action }), [send]);
 
   if (fatal)
     return (
@@ -130,5 +130,6 @@ export default function RoomClient({ code }: { code: string }) {
     );
   }
 
+  if (view.gameId === "bridge") return <BridgeTable view={view} game={view.game} act={act} send={send} error={error} />;
   return <Table view={view} game={view.game} act={act} send={send} error={error} />;
 }

@@ -1,6 +1,7 @@
-# 29 — card game for 4 friends
+# Card games for 4 friends: 29 and Contract Bridge
 
-Next.js app on Vercel. Login → create/join a room → pick seats → play.
+Next.js app on Vercel. Login → create a room (choose the game) or join one by code → pick seats → play.
+Settings → Rules shows the rules of the game you're in.
 
 ## Accounts
 
@@ -10,7 +11,18 @@ Next.js app on Vercel. Login → create/join a room → pick seats → play.
 - If your password is `1234`, the home screen shows a red reminder to change it. Changing it only asks for the new password.
 - A player can be in only one room at a time. A room stops counting once someone presses **End game** or it has been idle for 2 hours. Logging out from a lobby frees your seat.
 
-## Rules implemented
+## Games
+
+Each game plugs into `lib/games` (`GameDef`: new match, apply action, per-player view, bot move, bot pacing) and has its own table screen. Rooms, accounts, lobby, bots, sounds, settings and themes are shared. `lib/games/catalog.ts` lists the games; rooms made before this existed are treated as 29.
+
+### Contract Bridge (Chicago)
+
+- 52 cards, 13 each, clockwise play. The dealer calls first: bids 1♣–7NT, Pass, Double, Redouble. Three passes after a bid end the auction; four opening passes mean the same dealer redeals.
+- The declarer plays dummy's cards, which go face up after the opening lead.
+- Chicago: 4 deals, with vulnerability none / dealer's side / dealer's side / both. Standard scoring (contract points, game/part-score, slam, doubled/redoubled, overtricks, undertricks), with a breakdown after each deal. Highest total wins.
+- Bots use basic natural bidding (high-card points and suit length, no conventions) and simple card play. The engine is in `lib/games/bridge`; `scripts/bridge-test.ts` checks scoring against standard tables and plays 400 all-bot Chicagos.
+
+## 29 rules
 
 - 32 cards (J 9 A 10 K Q 8 7 in each suit). Points: J=3, 9=2, A=1, 10=1 → 28 per round.
 - Partners sit opposite: South+North = Team A, East+West = Team B. Play goes **anticlockwise**.

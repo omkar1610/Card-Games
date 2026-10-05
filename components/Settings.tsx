@@ -3,13 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { getVolume, installAudioUnlock, setVolume, sfx, unlockAudio } from "@/lib/sound";
 import { THEMES, Theme, getTheme, setTheme } from "@/lib/theme";
+import { RULES } from "@/lib/games/rules";
+import type { GameId } from "@/lib/games/catalog";
 
 /**
  * ⚙ menu in the top strip. Each setting is one row, so new ones can be added below
  * (e.g. theme, four-colour suits).
  */
-export default function Settings({ onEndGame }: { onEndGame: () => void }) {
+export default function Settings({ onEndGame, gameId }: { onEndGame: () => void; gameId: GameId }) {
   const [open, setOpen] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const [vol, setVol] = useState(0.6);
   const [theme, setThemeState] = useState<Theme>("heritage");
   const ref = useRef<HTMLSpanElement>(null);
@@ -92,6 +95,17 @@ export default function Settings({ onEndGame }: { onEndGame: () => void }) {
           </div>
           <div className="settings-row">
             <button
+              className="btn block"
+              onClick={() => {
+                setOpen(false);
+                setShowRules(true);
+              }}
+            >
+              📖 Rules
+            </button>
+          </div>
+          <div className="settings-row">
+            <button
               className="btn danger block"
               onClick={() => {
                 setOpen(false);
@@ -103,6 +117,35 @@ export default function Settings({ onEndGame }: { onEndGame: () => void }) {
           </div>
         </div>
       )}
+      {showRules && <RulesSheet gameId={gameId} onClose={() => setShowRules(false)} />}
     </span>
+  );
+}
+
+function RulesSheet({ gameId, onClose }: { gameId: GameId; onClose: () => void }) {
+  const rules = RULES[gameId];
+  return (
+    <div className="rules-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label={rules.title}>
+      <div className="rules-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="rules-head">
+          <h2>{rules.title}</h2>
+          <button className="btn small" onClick={onClose} aria-label="Close rules">
+            ✕
+          </button>
+        </div>
+        <div className="rules-body">
+          {rules.sections.map((s) => (
+            <section key={s.title}>
+              <h3>{s.title}</h3>
+              <ul>
+                {s.points.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

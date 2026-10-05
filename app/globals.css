@@ -1570,3 +1570,224 @@ a {
   color: var(--danger);
   border-color: rgba(255, 122, 122, 0.5);
 }
+
+/* ---------- game picker, rules sheet ---------- */
+.game-select {
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  font-size: 16px;
+}
+
+.lobby-game {
+  text-align: center;
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.rules-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.rules-sheet {
+  width: min(100vw, 480px);
+  max-height: 85dvh;
+  background: var(--panel-solid);
+  border: 1px solid var(--gold-line);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.rules-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px 8px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.rules-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 400;
+  color: var(--gold);
+}
+
+.rules-body {
+  overflow-y: auto;
+  padding: 4px 16px 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.rules-body h3 {
+  font-size: 14px;
+  margin: 14px 0 4px;
+  color: var(--gold-light);
+}
+
+.rules-body ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.rules-body li {
+  margin: 3px 0;
+}
+
+/* ---------- bridge ---------- */
+.bridge .my-hand {
+  --card-w: calc((var(--app-w) - 20px) / 6.6);
+}
+
+.bridge .my-hand .hand-card + .hand-card {
+  margin-left: calc(var(--card-w) * -0.56);
+}
+
+.bidding-box {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bb-levels,
+.bb-strains,
+.bb-calls {
+  display: grid;
+  gap: 5px;
+}
+
+.bb-levels {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.bb-strains {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.bb-calls {
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+}
+
+.bidding-box .btn {
+  padding: 9px 0;
+}
+
+.bb-strain {
+  background: var(--card-face);
+  color: var(--card-ink);
+  font-weight: 800;
+}
+
+.bb-strain.red {
+  color: var(--suit-red);
+}
+
+.bb-strain:disabled {
+  opacity: 0.3;
+}
+
+.dummy-band {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: rgba(14, 13, 29, 0.72);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 5px 8px;
+  width: 94%;
+}
+
+.dummy-band.active {
+  border-color: var(--gold);
+  box-shadow: 0 0 14px rgba(232, 176, 74, 0.5);
+}
+
+.dummy-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.dummy-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+  min-height: 24px;
+}
+
+.dummy-suit {
+  width: 16px;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.dummy-suit.red {
+  color: #f2707c;
+}
+
+.dummy-card {
+  min-width: 21px;
+  padding: 2px 3px;
+  border-radius: 5px;
+  border: 1px solid #d9c08a;
+  background: var(--card-face);
+  color: var(--card-ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dummy-card:disabled {
+  cursor: default;
+}
+
+.dummy-band.active .dummy-card:not(.playable) {
+  opacity: 0.45;
+}
+
+.dummy-card.playable {
+  box-shadow: 0 0 0 2px var(--gold);
+  transform: translateY(-1px);
+}
+
+.dummy-void {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.breakdown {
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.5;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 6px 0 10px;
+}
+
+.breakdown-total {
+  border-top: 1px solid var(--panel-border);
+  margin-top: 4px;
+  padding-top: 4px;
+  font-weight: 800;
+  color: var(--gold);
+}

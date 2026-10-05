@@ -46,7 +46,7 @@ export default function LoginForm({ next }: { next: string }) {
   return (
     <form className="panel" onSubmit={login}>
       <h1 className="logo">
-        2<span>9</span>
+        Game <span>Suite</span>
       </h1>
       <p className="subtitle">New username? An account is created for you.</p>
       {msg && <p className={msg.ok ? "success" : "error"}>{msg.text}</p>}

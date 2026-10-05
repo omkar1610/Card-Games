@@ -86,15 +86,23 @@ export default function Home({ username, defaultPassword, currentRoom }: Props) 
       {!currentRoom && (
         <>
           <div className="home-section" style={{ borderTop: "none", marginTop: 0, paddingTop: 0 }}>
-            <h3>Create room</h3>
-            <div className="game-tiles" role="radiogroup" aria-label="Game">
+            <h3>
+              Create room <span className="swipe-hint">{GAMES.length} games · swipe →</span>
+            </h3>
+            <div className="game-tiles" role="radiogroup" aria-label="Game" onScroll={(e) => {
+                const el = e.currentTarget;
+                el.dataset.end = String(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
+              }}>
               {GAMES.map((g) => (
                 <button
                   key={g.id}
                   role="radio"
                   aria-checked={game === g.id}
                   className={`game-tile ${game === g.id ? "on" : ""}`}
-                  onClick={() => setGame(g.id)}
+                  onClick={(e) => {
+                    setGame(g.id);
+                    e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+                  }}
                 >
                   <span className={`game-icon ${g.icon.match(/[♥♦]/) ? "red" : ""}`}>{g.icon}</span>
                   <span className="game-name">{g.name}</span>

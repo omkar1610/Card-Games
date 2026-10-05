@@ -8,8 +8,9 @@ const ui = Inter({ subsets: ["latin"], variable: "--font-ui" });
 const display = Rozha_One({ subsets: ["latin"], weight: "400", variable: "--font-display" });
 
 export const metadata: Metadata = {
-  title: "29",
-  description: "Play 29 with friends",
+  title: "Game Suite",
+  description: "Card and board games to play with friends: 29, Bridge, Ludo, Uno and more",
+  applicationName: "Game Suite",
 };
 
 export const viewport: Viewport = {

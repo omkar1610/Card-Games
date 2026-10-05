@@ -1,4 +1,4 @@
-# Games for friends: 29, Bridge, Ludo, Snakes & Ladders, Bluff, Uno, Tic-tac-toe, Dots & Boxes
+# Game Suite: 29, Bridge, Ludo, Snakes & Ladders, Bluff, Uno, Tic-tac-toe, Dots & Boxes
 
 Next.js app on Vercel. Login → create a room (choose the game) or join one by code → pick seats → play.
 Settings → Rules shows the rules of the game you're in.

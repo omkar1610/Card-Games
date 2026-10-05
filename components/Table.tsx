@@ -213,6 +213,7 @@ export default function Table({ view, game, act, send, error }: Props) {
   async function endGame() {
     if (!confirm("End this game for everyone? The room will close.")) return;
     await send({ op: "end" });
+    window.location.href = "/home"; // the person who ended it goes straight home
   }
 
   const initials = (seat: number) => {

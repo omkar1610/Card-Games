@@ -68,6 +68,7 @@ export default function GameFrame(p: Props) {
   async function endGame() {
     if (!confirm("End this game for everyone? The room will close.")) return;
     await p.send({ op: "end" });
+    window.location.href = "/home"; // the person who ended it goes straight home
   }
 
   const winnerText = !result

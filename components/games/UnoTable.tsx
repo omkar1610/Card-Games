@@ -94,6 +94,7 @@ export default function UnoTable({ view, game, act, send, error }: { view: RoomV
               )}
             </div>
           )}
+          <div className="hand-scroll">
           <div className="uno-hand">
             {game.hand.map((c) => {
               const ok = myTurn && playable.has(c);
@@ -104,6 +105,8 @@ export default function UnoTable({ view, game, act, send, error }: { view: RoomV
               );
             })}
           </div>
+          </div>
+          {game.hand.length > 9 && <div className="hand-count">{game.hand.length} cards · swipe to see them all</div>}
         </>
       }
     >

@@ -3,10 +3,17 @@
 import { useEffect, useState } from "react";
 import type { RoomView } from "@/lib/rooms";
 import { BLAction, BLView, BLUFF_RANKS } from "@/lib/games/bluff";
+
+// Group by rank (A, 2 … K) so all cards of a rank sit together and are easy to pick.
+const SUIT_ORDER = ["S", "H", "C", "D"];
+const byRank = (hand: string[]) =>
+  hand
+    .slice()
+    .sort((a, b) => BLUFF_RANKS.indexOf(rankOf(a)) - BLUFF_RANKS.indexOf(rankOf(b)) || SUIT_ORDER.indexOf(suitOf(a)) - SUIT_ORDER.indexOf(suitOf(b)));
 import GameFrame from "../GameFrame";
 import { PLAYER_COLOURS } from "./DotsTable";
 import { CardBack, CardFace } from "../Card";
-import { sortBridgeHand } from "@/lib/games/bridge/engine";
+import { rankOf, suitOf } from "@/lib/engine/cards";
 import { displayName } from "@/lib/names";
 import { sfx } from "@/lib/sound";
 import { useLogSounds } from "./useLogSounds";
@@ -83,13 +90,17 @@ export default function BluffTable({ view, game, act, send, error }: { view: Roo
               )}
             </div>
           )}
-          <div className="my-hand bluff-hand">
-            {sortBridgeHand(game.hand).map((c) => (
-              <button key={c} className={`hand-card ${selected.includes(c) ? "selected" : ""}`} disabled={!myTurn} onClick={() => toggle(c)}>
-                <CardFace card={c} />
-              </button>
-            ))}
+          {/* Scrolls sideways when the hand is wider than the screen; centred otherwise. */}
+          <div className="hand-scroll">
+            <div className="my-hand bluff-hand">
+              {byRank(game.hand).map((c) => (
+                <button key={c} className={`hand-card ${selected.includes(c) ? "selected" : ""}`} disabled={!myTurn} onClick={() => toggle(c)}>
+                  <CardFace card={c} />
+                </button>
+              ))}
+            </div>
           </div>
+          {game.hand.length > 13 && <div className="hand-count">{game.hand.length} cards · swipe to see them all</div>}
         </>
       }
     >

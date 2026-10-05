@@ -5,7 +5,7 @@ import type { DAction, DView } from "@/lib/games/dots";
 import GameFrame from "../GameFrame";
 import { displayName } from "@/lib/names";
 import { sfx } from "@/lib/sound";
-import { useLogSounds } from "./useLogSounds";
+import { useChangeSound, useLogSounds } from "./useLogSounds";
 
 export const PLAYER_COLOURS = ["#e8604c", "#5b8def", "#2fae6b", "#e3a72c", "#a66ee8", "#e85fa8"];
 
@@ -14,6 +14,14 @@ export default function DotsTable({ view, game, act, send, error }: { view: Room
   const myTurn = game.turn === me && !game.winners;
   const name = (s: number) => (s === me ? "You" : displayName(view.names[s]));
   useLogSounds(game.log, view.version, (e) => e.text.startsWith("closed") && sfx.good());
+  // Other players' lines (mine already ticked when I tapped).
+  useChangeSound(game.moves, view.version, (prev, next) => {
+    if (next > prev && game.lastLine) {
+      const l = game.lastLine;
+      const owner = (l.kind === "h" ? game.h : game.v)[l.r][l.c];
+      if (owner !== me) sfx.tap();
+    }
+  });
 
   // SVG coordinates: dots every 60 units with a margin.
   const G = 60;

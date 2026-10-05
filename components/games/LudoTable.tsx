@@ -6,7 +6,7 @@ import GameFrame from "../GameFrame";
 import Dice from "./Dice";
 import { displayName } from "@/lib/names";
 import { sfx } from "@/lib/sound";
-import { useLogSounds } from "./useLogSounds";
+import { useChangeSound, useLogSounds } from "./useLogSounds";
 
 export const LUDO_HEX: Record<Colour, string> = { red: "#e0453a", green: "#2fae6b", yellow: "#e8b923", blue: "#3f7fe0" };
 const BASE_ORIGIN: Record<Colour, [number, number]> = { red: [0, 0], green: [0, 9], yellow: [9, 9], blue: [9, 0] };
@@ -40,6 +40,12 @@ export default function LudoTable({ view, game, act, send, error }: { view: Room
     if (e.text.startsWith("rolled")) sfx.dice();
     else if (e.text.startsWith("captured")) sfx.good();
     else if (e.text.startsWith("brought")) sfx.good();
+  });
+  // A token moved: hop sound.
+  useChangeSound(game.lastMove, view.version, (_, mv) => mv && sfx.tap());
+  // One of my tokens on the board was sent back to base: captured.
+  useChangeSound(game.tokens[me], view.version, (prev, next) => {
+    if (next.some((p, i) => p === -1 && prev[i] >= 0)) setTimeout(sfx.bad, 250);
   });
 
   /** Where a token sits, in cell units (row, col) of its centre. */

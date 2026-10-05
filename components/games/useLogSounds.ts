@@ -18,3 +18,22 @@ export function useLogSounds(log: { seat: number | null; text: string }[], versi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
 }
+
+/**
+ * Calls `onChange(previous, current)` when `value` changes between updates (not on first render).
+ * Used for sounds driven by the game state rather than the log (e.g. an opponent's move).
+ */
+export function useChangeSound<T>(value: T, version: number, onChange: (prev: T, next: T) => void) {
+  const prev = useRef<{ v: T } | null>(null);
+  useEffect(() => {
+    const p = prev.current;
+    prev.current = { v: value };
+    if (p && JSON.stringify(p.v) !== JSON.stringify(value)) onChange(p.v, value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
+}
+
+/** Card flicks for a fresh deal: `count` cards, quickly. */
+export function dealSound(sfxDeal: (at?: number) => void, count: number) {
+  for (let i = 0; i < Math.min(count, 28); i++) sfxDeal(i * 0.035);
+}

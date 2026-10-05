@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RoomView } from "@/lib/rooms";
 import { UAction, UColour, UCOLOURS, UCOLOUR_NAME, UView, isWild, ucolour, uvalue } from "@/lib/games/uno";
 import GameFrame from "../GameFrame";
 import { PLAYER_COLOURS } from "./DotsTable";
 import { displayName } from "@/lib/names";
 import { sfx } from "@/lib/sound";
-import { useLogSounds } from "./useLogSounds";
+import { dealSound, useLogSounds } from "./useLogSounds";
 
 export const UNO_HEX: Record<UColour, string> = { R: "#d8352a", Y: "#e9b417", G: "#2f9e4f", B: "#2c6bd6" };
 
@@ -38,6 +38,12 @@ export function UnoCard({ card, small }: { card: string; small?: boolean }) {
 
 export default function UnoTable({ view, game, act, send, error }: { view: RoomView; game: UView; act: (a: UAction) => Promise<void>; send: (b: unknown) => Promise<void>; error: string }) {
   const me = game.mySeat;
+  // The deal: when a game has just started (its log has only the opening entry).
+  const dealKey = `${game.wins.reduce((a, b) => a + b, 0)}:${game.log.length === 1}`;
+  useEffect(() => {
+    if (game.log.length === 1) dealSound(sfx.deal, game.players * 7);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealKey]);
   const myTurn = game.turn === me && game.winner === null;
   const name = (s: number) => (s === me ? "You" : displayName(view.names[s]));
   const [choosing, setChoosing] = useState<string | null>(null); // wild waiting for a colour

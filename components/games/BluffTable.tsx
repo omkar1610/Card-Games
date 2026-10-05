@@ -16,10 +16,16 @@ import { CardBack, CardFace } from "../Card";
 import { rankOf, suitOf } from "@/lib/engine/cards";
 import { displayName } from "@/lib/names";
 import { sfx } from "@/lib/sound";
-import { useLogSounds } from "./useLogSounds";
+import { dealSound, useLogSounds } from "./useLogSounds";
 
 export default function BluffTable({ view, game, act, send, error }: { view: RoomView; game: BLView; act: (a: BLAction) => Promise<void>; send: (b: unknown) => Promise<void>; error: string }) {
   const me = game.mySeat;
+  // The deal: when a game has just started (its log has only the opening entry).
+  const dealKey = `${game.wins.reduce((a, b) => a + b, 0)}:${game.log.length === 1}`;
+  useEffect(() => {
+    if (game.log.length === 1) dealSound(sfx.deal, 52);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealKey]);
   const myTurn = game.turn === me && game.winner === null;
   const name = (s: number) => (s === me ? "You" : displayName(view.names[s]));
   const [selected, setSelected] = useState<string[]>([]);

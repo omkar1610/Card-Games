@@ -5,7 +5,7 @@ import type { TAction, TView } from "@/lib/games/tictactoe";
 import GameFrame from "../GameFrame";
 import { displayName } from "@/lib/names";
 import { sfx } from "@/lib/sound";
-import { useLogSounds } from "./useLogSounds";
+import { useChangeSound } from "./useLogSounds";
 
 const MARK = ["✕", "○"];
 const COLOUR = ["#e8604c", "#5b8def"];
@@ -14,8 +14,12 @@ export default function TicTacToeTable({ view, game, act, send, error }: { view:
   const me = game.mySeat;
   const myTurn = game.turn === me && game.winner === null;
   const name = (s: number) => (s === me ? "You" : displayName(view.names[s]));
-  useLogSounds(game.log, view.version, () => {});
   const filled = game.board.filter((c) => c !== null).length;
+  // The other player's mark (mine already ticked when I tapped).
+  useChangeSound(game.board, view.version, (prev, next) => {
+    const placed = next.findIndex((c, i) => c !== null && prev[i] === null);
+    if (placed >= 0 && next[placed] !== me) sfx.tap();
+  });
 
   return (
     <GameFrame

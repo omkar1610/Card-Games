@@ -87,19 +87,22 @@ export default function Home({ username, defaultPassword, currentRoom }: Props) 
         <>
           <div className="home-section" style={{ borderTop: "none", marginTop: 0, paddingTop: 0 }}>
             <h3>Create room</h3>
-            <label className="field" style={{ marginBottom: 10 }}>
-              Game
-              <select className="game-select" value={game} onChange={(e) => setGame(e.target.value as GameId)}>
-                {GAMES.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className="hint" style={{ margin: "0 0 10px", textAlign: "left" }}>
-              {GAMES.find((g) => g.id === game)?.blurb}
-            </p>
+            <div className="game-tiles" role="radiogroup" aria-label="Game">
+              {GAMES.map((g) => (
+                <button
+                  key={g.id}
+                  role="radio"
+                  aria-checked={game === g.id}
+                  className={`game-tile ${game === g.id ? "on" : ""}`}
+                  onClick={() => setGame(g.id)}
+                >
+                  <span className={`game-icon ${g.icon.match(/[♥♦]/) ? "red" : ""}`}>{g.icon}</span>
+                  <span className="game-name">{g.name}</span>
+                  <span className="game-blurb">{g.blurb}</span>
+                  <span className="game-players">4 players</span>
+                </button>
+              ))}
+            </div>
             <button className="btn primary block" onClick={createRoom} disabled={busy}>
               Create a {GAMES.find((g) => g.id === game)?.name} room
             </button>

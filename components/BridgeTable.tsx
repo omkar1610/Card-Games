@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RoomView } from "@/lib/rooms";
 import type { Team } from "@/lib/engine/game";
 import { SUIT_SYMBOL, Suit, rankOf, suitOf } from "@/lib/engine/cards";
-import { BAction, BView, Call, STRAINS, STRAIN_SYMBOL, Strain, callText, contractText } from "@/lib/games/bridge/engine";
+import { BAction, BView, Call, STRAINS, STRAIN_SYMBOL, Strain, callText, contractText, trickWinner } from "@/lib/games/bridge/engine";
 import { CardBack, CardFace } from "./Card";
 import Settings from "./Settings";
 import { displayName } from "@/lib/names";
@@ -108,6 +108,8 @@ export default function BridgeTable({ view, game, act, send, error }: Props) {
       ? lastTrick!.cards
       : r.trick;
   const legal = new Set(r.legalCards);
+  // Who's winning the trick so far (from the 2nd card).
+  const leadingSeat = c && shownTrick.length >= 2 ? trickWinner(shownTrick, c.strain) : null;
   const iAmDummy = r.dummy === me && r.phase === "play";
 
   const lastCall = (seat: number) => {
@@ -318,7 +320,10 @@ export default function BridgeTable({ view, game, act, send, error }: Props) {
           )}
           <div className={`collect ${showLast && held?.collecting ? `to-${dirOf(lastTrick!.winner)}` : ""}`}>
             {shownTrick.map((p) => (
-              <div key={p.card} className={`trick-card ${dirOf(p.seat)} ${showLast && p.seat === lastTrick!.winner ? "winner" : ""}`}>
+              <div
+                key={p.card}
+                className={`trick-card ${dirOf(p.seat)} ${showLast && p.seat === lastTrick!.winner ? "winner" : !showLast && p.seat === leadingSeat ? "leading" : ""}`}
+              >
                 <CardFace card={p.card} />
               </div>
             ))}

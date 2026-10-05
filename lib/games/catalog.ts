@@ -1,9 +1,9 @@
 // The list of games, safe to import on the client (no engine code).
 export type GameId = "29" | "bridge";
 
-export const GAMES: { id: GameId; name: string; blurb: string }[] = [
-  { id: "29", name: "29", blurb: "4 players · 2 teams · first to ±6" },
-  { id: "bridge", name: "Contract Bridge", blurb: "4 players · 2 partnerships · Chicago (4 deals)" },
+export const GAMES: { id: GameId; name: string; blurb: string; icon: string }[] = [
+  { id: "29", name: "29", blurb: "Bid, hide the trump, first team to ±6", icon: "J♠" },
+  { id: "bridge", name: "Contract Bridge", blurb: "Auction, dummy, 4-deal Chicago", icon: "A♥" },
 ];
 
 export const DEFAULT_GAME: GameId = "29";

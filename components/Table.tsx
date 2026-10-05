@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RoomView } from "@/lib/rooms";
 import type { Action, PlayerView, Team } from "@/lib/engine/game";
+import { trickWinner } from "@/lib/engine/game";
 import { SUITS, SUIT_SYMBOL, SUIT_NAME, Suit } from "@/lib/engine/cards";
 import { CardBack, CardFace } from "./Card";
 import Settings from "./Settings";
@@ -11,7 +12,7 @@ import { sfx } from "@/lib/sound";
 
 type Dir = "s" | "e" | "n" | "w";
 const DIRS: Dir[] = ["s", "e", "n", "w"]; // relative to me, anticlockwise
-const TRICK_SHOW_MS = 700; // finished hand stays in the middle…
+const TRICK_SHOW_MS = 800; // finished hand stays in the middle…
 const TRICK_COLLECT_MS = 450; // …then slides to whoever won it
 const TOAST_MS = 3500;
 const DEAL_STEP_MS = 70; // gap between cards flying out of the dealer's hand
@@ -107,6 +108,8 @@ export default function Table({ view, game, act, send, error }: Props) {
   const showLast = holding && r.trick.length === 0 && lastTrick !== null && !pending;
   const shownTrick = pending ? [...r.trick, { seat: me, card: pending }] : showLast ? lastTrick!.cards : r.trick;
   const deciding = r.phase === "double" || r.phase === "redouble";
+  // Who's winning the trick so far (from the 2nd card). Trump only counts once revealed, as in the rules.
+  const leadingSeat = shownTrick.length >= 2 ? trickWinner(shownTrick, r.trumpSuit, r.trumpRevealed) : null;
   const myTurn =
     !pending && r.turn === me && (r.phase === "bidding" || r.phase === "trump" || r.phase === "playing");
   const iDecide = r.doubleDeciders.includes(me);
@@ -387,7 +390,7 @@ export default function Table({ view, game, act, send, error }: Props) {
             {shownTrick.map((p) => (
               <div
                 key={p.card}
-                className={`trick-card ${dirOf(p.seat)} ${showLast && p.seat === lastTrick!.winner ? "winner" : ""}`}
+                className={`trick-card ${dirOf(p.seat)} ${showLast && p.seat === lastTrick!.winner ? "winner" : !showLast && p.seat === leadingSeat ? "leading" : ""}`}
               >
                 <CardFace card={p.card} />
               </div>
